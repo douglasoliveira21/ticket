@@ -81,7 +81,8 @@ export async function register(req: Request, res: Response) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: 'Dados inválidos', details: error.errors });
     }
-    return res.status(500).json({ success: false, error: 'Erro ao registrar' });
+    console.error('Register error:', error);
+    return res.status(500).json({ success: false, error: 'Erro ao registrar', detail: error.message });
   }
 }
 

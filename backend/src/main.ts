@@ -21,6 +21,7 @@ const PORT = process.env.BACKEND_PORT || 3001;
 
 // Middleware
 app.use(helmet());
+app.set('trust proxy', 1);
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
