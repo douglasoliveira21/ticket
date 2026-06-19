@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  name        String
+  role        UserRole @default(OPERATOR)
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  auditLogs   AuditLog[]
+
+  @@map("users")
+}
+
+model Company {
+  id                  String   @id @default(uuid())
+  razaoSocial         String
+  nomeFantasia        String?
+  cnpj                String   @unique
+  inscricaoMunicipal  String?
+  emailFiscal         String?
+  telefone            String?
+  logradouro          String?
+  numero              String?
+  complemento         String?
+  bairro              String?
+  cidade              String?
+  uf                  String?
+  cep                 String?
+  codigoMunicipio     String?
+  regimeTributario    String?
+  codigoServico       String?
+  aliquotaIss         Float?
+  cnae                String?
+  certificadoDigital  String?   // encrypted
+  senhaCertificado    String?   // encrypted
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  users               User[]
+  symplaIntegrations  SymplaIntegration[]
+  events              Event[]
+  orders              Order[]
+  invoices            Invoice[]
+  emailSettings       EmailSettings?
+  fiscalSettings      FiscalSettings?
+  auditLogs           AuditLog[]
+
+  @@map("companies")
+}
+
+model FiscalSettings {
+  id                  String   @id @default(uuid())
+  companyId           String   @unique
+  company             Company  @relation(fields: [companyId], references: [id])
+  prefeitura          String   @default("BH")
+  ambiente            String   @default("homologacao") // homologacao | producao
+  urlWebservice       String?
+  usuarioWebservice   String?  // encrypted
+  senhaWebservice     String?  // encrypted
+  certificadoPath     String?
+  senhaCertificado    String?  // encrypted
+  serieRps            String?  @default("1")
+  proximoNumeroRps    Int      @default(1)
+  descricaoPadrao     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("fiscal_settings")
+}
+
+model EmailSettings {
+  id          String   @id @default(uuid())
+  companyId   String   @unique
+  company     Company  @relation(fields: [companyId], references: [id])
+  smtpHost    String?
+  smtpPort    Int?     @default(587)
+  smtpUser    String?  // encrypted
+  smtpPass    String?  // encrypted
+  smtpFrom    String?
+  smtpFromName String?
+  useTls      Boolean  @default(true)
+  templateAssunto String? @default("Nota Fiscal - {evento}")
+  templateCorpo   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("email_settings")
+}
+
+model SymplaIntegration {
+  id              String   @id @default(uuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id])
+  name            String
+  token           String   // encrypted
+  isActive        Boolean  @default(true)
+  lastSync        DateTime?
+  syncAutoEnabled Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  events          Event[]
+
+  @@map("sympla_integrations")
+}
+
+model Event {
+  id                  String   @id @default(uuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+  symplaIntegrationId String?
+  symplaIntegration   SymplaIntegration? @relation(fields: [symplaIntegrationId], references: [id])
+  symplaId            String?  @unique
+  name                String
+  description         String?
+  startDate           DateTime?
+  endDate             DateTime?
+  location            String?
+  status              String?  @default("active")
+  url                 String?
+  organizer           String?
+  origin              EventOrigin @default(SYMPLA)
+  autoEmitNfse        Boolean  @default(false)
+  codigoServico       String?
+  aliquotaIss         Float?
+  descricaoServico    String?
+  lastSync            DateTime?
+  rawPayload          Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  orders              Order[]
+
+  @@map("events")
+}
+
+model Order {
+  id                  String   @id @default(uuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+  eventId             String
+  event               Event    @relation(fields: [eventId], references: [id])
+  symplaOrderId       String?  @unique
+  symplaParticipantId String?
+  buyerName           String
+  buyerEmail          String
+  buyerDocument       String?  // CPF/CNPJ
+  buyerPhone          String?
+  amount              Float
+  fees                Float?   @default(0)
+  netAmount           Float?
+  purchaseDate        DateTime
+  orderStatus         String   @default("approved") // approved, pending, cancelled, refunded
+  ticketType          String?
+  ticketNumber        String?
+  origin              EventOrigin @default(SYMPLA)
+  ignored             Boolean  @default(false)
+  rawPayload          Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  invoices            Invoice[]
+
+  @@map("orders")
+}
+
+model Invoice {
+  id                  String   @id @default(uuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id])
+  status              InvoiceStatus @default(PENDING)
+  numeroNota          String?
+  codigoVerificacao   String?
+  numeroRps           String?
+  serieRps            String?
+  xmlEnvio            String?  @db.Text
+  xmlRetorno          String?  @db.Text
+  pdfUrl              String?
+  protocolo           String?
+  descricaoServico    String?
+  valorServico        Float
+  aliquotaIss         Float?
+  valorIss            Float?
+  codigoServico       String?
+  dataEmissao         DateTime?
+  errorMessage        String?
+  attempts            Int      @default(0)
+  lastAttempt         DateTime?
+  emailSent           Boolean  @default(false)
+  emailSentAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  emailLogs           EmailLog[]
+  invoiceAttempts     InvoiceAttempt[]
+
+  @@map("invoices")
+}
+
+model InvoiceAttempt {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  status      String   // success, error
+  requestXml  String?  @db.Text
+  responseXml String?  @db.Text
+  errorMessage String?
+  createdAt   DateTime @default(now())
+
+  @@map("invoice_attempts")
+}
+
+model EmailLog {
+  id          String   @id @default(uuid())
+  invoiceId   String?
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  companyId   String
+  toEmail     String
+  toName      String?
+  subject     String
+  status      String   @default("sent") // sent, failed, pending
+  errorMessage String?
+  sentAt      DateTime @default(now())
+
+  @@map("email_logs")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  action      String
+  entity      String
+  entityId    String?
+  details     Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+}
+
+enum EventOrigin {
+  SYMPLA
+  MANUAL
+}
+
+enum InvoiceStatus {
+  PENDING
+  PROCESSING
+  ISSUED
+  ERROR
+  CANCELLED
+}
