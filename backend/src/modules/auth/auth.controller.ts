@@ -144,7 +144,6 @@ export async function me(req: AuthRequest, res: Response) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      include: { company: true },
       select: {
         id: true,
         name: true,
