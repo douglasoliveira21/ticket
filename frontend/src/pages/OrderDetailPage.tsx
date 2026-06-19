@@ -2,7 +2,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { FileText, Send, XCircle, RotateCcw } from 'lucide-react';
+import { FileText, Send, XCircle } from 'lucide-react';
 
 export default function OrderDetailPage() {
   const { id } = useParams();
