@@ -55,7 +55,7 @@ export async function register(req: Request, res: Response) {
     const token = jwt.sign(
       { userId: user.id, companyId: company.id },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: '7d' as any }
     );
 
     await prisma.auditLog.create({
@@ -106,7 +106,7 @@ export async function login(req: Request, res: Response) {
     const token = jwt.sign(
       { userId: user.id, companyId: user.companyId },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: '7d' as any }
     );
 
     await prisma.auditLog.create({
@@ -145,7 +145,17 @@ export async function me(req: AuthRequest, res: Response) {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
       include: { company: true },
-      omit: { password: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        companyId: true,
+        createdAt: true,
+        updatedAt: true,
+        company: true,
+      },
     });
 
     if (!user) {
