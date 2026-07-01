@@ -135,6 +135,7 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
     urlWebservice: fiscalSettings?.urlWebservice || undefined,
     usuario: fiscalSettings?.usuarioWebservice || undefined,
     senha: fiscalSettings?.senhaWebservice || undefined,
+    companyId,
   });
 
   const result = await nfseService.emitirNfse(nfseData);

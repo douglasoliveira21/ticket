@@ -70,8 +70,10 @@ model FiscalSettings {
   urlWebservice       String?
   usuarioWebservice   String?  // encrypted
   senhaWebservice     String?  // encrypted
-  certificadoPath     String?
+  certificadoBase64   String?  @db.Text // certificado .pfx armazenado em base64
+  certificadoNome     String?  // nome original do arquivo
   senhaCertificado    String?  // encrypted
+  certificadoValidade DateTime? // data de expiração do certificado
   serieRps            String?  @default("1")
   proximoNumeroRps    Int      @default(1)
   descricaoPadrao     String?

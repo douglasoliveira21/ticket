@@ -14,7 +14,10 @@
  * - CancelarNfse
  */
 
+import https from 'https';
+import crypto from 'crypto';
 import { decrypt } from '../../common/utils/encryption';
+import { loadCompanyCertificate } from '../company/certificate.controller';
 
 export interface NfseData {
   // Prestador
@@ -54,12 +57,14 @@ export class NfseBHService {
   private urlWebservice: string;
   private usuario?: string;
   private senha?: string;
+  private companyId?: string;
 
   constructor(config: {
     ambiente: string;
     urlWebservice?: string;
     usuario?: string;
     senha?: string;
+    companyId?: string;
   }) {
     this.ambiente = config.ambiente;
     this.urlWebservice = config.urlWebservice ||
@@ -68,6 +73,7 @@ export class NfseBHService {
         : 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse');
     this.usuario = config.usuario ? decrypt(config.usuario) : undefined;
     this.senha = config.senha ? decrypt(config.senha) : undefined;
+    this.companyId = config.companyId;
   }
 
   /**
@@ -142,6 +148,7 @@ export class NfseBHService {
   /**
    * Emite NFS-e individual (GerarNfse)
    * Em ambiente de homologação, simula a resposta
+   * Em produção, usa o certificado A1 para comunicação HTTPS com o webservice
    */
   async emitirNfse(data: NfseData): Promise<NfseResult> {
     const xmlEnvio = this.generateRpsXml(data);
@@ -161,21 +168,32 @@ export class NfseBHService {
       };
     }
 
-    // Produção - Chamada real ao webservice
+    // Produção - Chamada real ao webservice com certificado A1
     try {
-      // TODO: Implementar chamada SOAP real ao webservice da PBH
-      // Necessário: certificado digital A1, assinatura XML, envelope SOAP
-      // A implementação completa requer:
-      // 1. Leitura do certificado .pfx
-      // 2. Assinatura do XML com xmldsig
-      // 3. Montagem do envelope SOAP
-      // 4. Chamada HTTPS com certificado cliente
-      // 5. Parse da resposta
-      
-      return {
-        success: false,
-        errorMessage: 'Emissão em produção requer configuração do certificado digital. Configure nas configurações fiscais.',
-      };
+      if (!this.companyId) {
+        return {
+          success: false,
+          errorMessage: 'ID da empresa não configurado para emissão em produção.',
+        };
+      }
+
+      // Carregar certificado digital A1
+      const cert = await loadCompanyCertificate(this.companyId);
+      if (!cert) {
+        return {
+          success: false,
+          errorMessage: 'Certificado digital A1 não configurado. Faça o upload nas configurações fiscais.',
+        };
+      }
+
+      // Montar envelope SOAP
+      const soapEnvelope = this.buildSoapEnvelope('GerarNfseEnvio', xmlEnvio);
+
+      // Fazer chamada HTTPS com certificado cliente
+      const response = await this.callWebservice(soapEnvelope, cert.buffer, cert.password);
+
+      // Parse da resposta
+      return this.parseNfseResponse(response);
     } catch (error: any) {
       return {
         success: false,
@@ -196,9 +214,137 @@ export class NfseBHService {
       };
     }
 
+    if (!this.companyId) {
+      return { success: false, errorMessage: 'ID da empresa não configurado.' };
+    }
+
+    const cert = await loadCompanyCertificate(this.companyId);
+    if (!cert) {
+      return { success: false, errorMessage: 'Certificado digital não configurado.' };
+    }
+
+    const xmlConsulta = `<?xml version="1.0" encoding="UTF-8"?>
+<ConsultarNfseRpsEnvio xmlns="http://www.abrasf.org.br/nfse.xsd">
+  <IdentificacaoRps>
+    <Numero>${numeroRps}</Numero>
+    <Serie>${serieRps}</Serie>
+    <Tipo>1</Tipo>
+  </IdentificacaoRps>
+  <Prestador>
+    <CpfCnpj>
+      <Cnpj>${cnpj}</Cnpj>
+    </CpfCnpj>
+    <InscricaoMunicipal>${im}</InscricaoMunicipal>
+  </Prestador>
+</ConsultarNfseRpsEnvio>`;
+
+    try {
+      const soapEnvelope = this.buildSoapEnvelope('ConsultarNfsePorRps', xmlConsulta);
+      const response = await this.callWebservice(soapEnvelope, cert.buffer, cert.password);
+      return this.parseNfseResponse(response);
+    } catch (error: any) {
+      return { success: false, errorMessage: error.message || 'Erro na consulta' };
+    }
+  }
+
+  /**
+   * Monta o envelope SOAP para o webservice da PBH
+   */
+  private buildSoapEnvelope(operation: string, xmlContent: string): string {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ws="http://ws.bhiss.pbh.gov.br">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ws:${operation}Input>
+      <nfseCabecMsg><![CDATA[<?xml version="1.0" encoding="UTF-8"?><cabecalho xmlns="http://www.abrasf.org.br/nfse.xsd" versao="2.01"><versaoDados>2.01</versaoDados></cabecalho>]]></nfseCabecMsg>
+      <nfseDadosMsg><![CDATA[${xmlContent}]]></nfseDadosMsg>
+    </ws:${operation}Input>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+  }
+
+  /**
+   * Realiza a chamada HTTPS ao webservice usando o certificado A1 como client certificate
+   */
+  private callWebservice(soapXml: string, pfxBuffer: Buffer, pfxPassword: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const url = new URL(this.urlWebservice);
+
+      const options: https.RequestOptions = {
+        hostname: url.hostname,
+        port: 443,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml; charset=utf-8',
+          'Content-Length': Buffer.byteLength(soapXml, 'utf-8'),
+          'SOAPAction': '',
+        },
+        pfx: pfxBuffer,
+        passphrase: pfxPassword,
+        rejectUnauthorized: true,
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data);
+          } else {
+            reject(new Error(`Webservice retornou status ${res.statusCode}: ${data.substring(0, 500)}`));
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        reject(new Error(`Erro de conexão com webservice: ${err.message}`));
+      });
+
+      req.setTimeout(30000, () => {
+        req.destroy();
+        reject(new Error('Timeout na comunicação com o webservice (30s)'));
+      });
+
+      req.write(soapXml);
+      req.end();
+    });
+  }
+
+  /**
+   * Parse da resposta XML do webservice da PBH
+   */
+  private parseNfseResponse(xmlResponse: string): NfseResult {
+    // Verificar se há mensagem de erro
+    const erroMatch = xmlResponse.match(/<MensagemRetorno>[\s\S]*?<Codigo>(.*?)<\/Codigo>[\s\S]*?<Mensagem>(.*?)<\/Mensagem>/);
+    if (erroMatch) {
+      return {
+        success: false,
+        errorMessage: `Erro ${erroMatch[1]}: ${erroMatch[2]}`,
+        xmlRetorno: xmlResponse,
+      };
+    }
+
+    // Extrair número da nota
+    const numeroMatch = xmlResponse.match(/<Numero>(.*?)<\/Numero>/);
+    const codigoMatch = xmlResponse.match(/<CodigoVerificacao>(.*?)<\/CodigoVerificacao>/);
+    const protocoloMatch = xmlResponse.match(/<Protocolo>(.*?)<\/Protocolo>/);
+
+    if (numeroMatch) {
+      return {
+        success: true,
+        numeroNota: numeroMatch[1],
+        codigoVerificacao: codigoMatch?.[1],
+        protocolo: protocoloMatch?.[1],
+        xmlRetorno: xmlResponse,
+      };
+    }
+
+    // Resposta não reconhecida
     return {
       success: false,
-      errorMessage: 'Consulta em produção não implementada',
+      errorMessage: 'Resposta do webservice não reconhecida',
+      xmlRetorno: xmlResponse,
     };
   }
 

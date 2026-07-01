@@ -31,8 +31,6 @@ const fiscalSettingsSchema = z.object({
   urlWebservice: z.string().optional(),
   usuarioWebservice: z.string().optional(),
   senhaWebservice: z.string().optional(),
-  certificadoPath: z.string().optional(),
-  senhaCertificado: z.string().optional(),
   serieRps: z.string().optional(),
   proximoNumeroRps: z.number().optional(),
   descricaoPadrao: z.string().optional(),
@@ -129,7 +127,6 @@ export async function updateFiscalSettings(req: AuthRequest, res: Response) {
     const encryptedData: any = { ...data };
     if (data.usuarioWebservice) encryptedData.usuarioWebservice = encrypt(data.usuarioWebservice);
     if (data.senhaWebservice) encryptedData.senhaWebservice = encrypt(data.senhaWebservice);
-    if (data.senhaCertificado) encryptedData.senhaCertificado = encrypt(data.senhaCertificado);
 
     const settings = await prisma.fiscalSettings.upsert({
       where: { companyId: req.companyId },
