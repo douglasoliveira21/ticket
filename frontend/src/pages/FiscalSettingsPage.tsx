@@ -10,9 +10,6 @@ export default function FiscalSettingsPage() {
   const [form, setForm] = useState({
     prefeitura: 'BH',
     ambiente: 'homologacao',
-    urlWebservice: '',
-    usuarioWebservice: '',
-    senhaWebservice: '',
     serieRps: '1',
     proximoNumeroRps: 1,
     descricaoPadrao: '',
@@ -35,9 +32,6 @@ export default function FiscalSettingsPage() {
       setForm({
         prefeitura: data.prefeitura || 'BH',
         ambiente: data.ambiente || 'homologacao',
-        urlWebservice: data.urlWebservice || '',
-        usuarioWebservice: '',
-        senhaWebservice: '',
         serieRps: data.serieRps || '1',
         proximoNumeroRps: data.proximoNumeroRps || 1,
         descricaoPadrao: data.descricaoPadrao || '',
@@ -85,8 +79,6 @@ export default function FiscalSettingsPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const payload: any = { ...form };
-    if (!payload.usuarioWebservice) delete payload.usuarioWebservice;
-    if (!payload.senhaWebservice) delete payload.senhaWebservice;
     mutation.mutate(payload);
   }
 
@@ -261,10 +253,10 @@ export default function FiscalSettingsPage() {
         )}
       </div>
 
-      {/* Configurações do Webservice */}
+      {/* Configurações Gerais */}
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Webservice NFS-e</h3>
+          <h3 className="text-lg font-semibold mb-4">Configurações Gerais</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Prefeitura</label>
@@ -278,19 +270,6 @@ export default function FiscalSettingsPage() {
                 <option value="homologacao">Homologação</option>
                 <option value="producao">Produção</option>
               </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">URL do Webservice</label>
-              <input value={form.urlWebservice} onChange={e => setForm({ ...form, urlWebservice: e.target.value })} className="input-field" placeholder="https://bhissdigital.pbh.gov.br/bhiss-ws/nfse" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Usuário Webservice</label>
-              <input value={form.usuarioWebservice} onChange={e => setForm({ ...form, usuarioWebservice: e.target.value })} className="input-field" />
-              {data?.hasCredentials && <p className="text-xs text-green-600 mt-1">✓ Configurado</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Senha Webservice</label>
-              <input type="password" value={form.senhaWebservice} onChange={e => setForm({ ...form, senhaWebservice: e.target.value })} className="input-field" />
             </div>
           </div>
         </div>
@@ -317,7 +296,7 @@ export default function FiscalSettingsPage() {
           <h4 className="font-medium text-yellow-800 mb-2">⚠️ Importante</h4>
           <ul className="text-sm text-yellow-700 space-y-1 list-disc pl-4">
             <li>Em modo Homologação, as notas são simuladas (não são enviadas à Prefeitura).</li>
-            <li>Para Produção, é necessário certificado digital A1 (enviado acima) e credenciais do BHISS Digital.</li>
+            <li>Para Produção, é necessário o certificado digital A1 (enviado acima).</li>
             <li>Configure primeiro os dados da empresa (CNPJ, Inscrição Municipal, código de serviço).</li>
           </ul>
         </div>
