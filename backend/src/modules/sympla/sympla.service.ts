@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { decrypt } from '../../common/utils/encryption';
 
-const SYMPLA_BASE_URL = process.env.SYMPLA_BASE_URL || 'https://api.sympla.com.br/public/v4';
+const SYMPLA_BASE_URL = process.env.SYMPLA_BASE_URL || 'https://api.sympla.com.br/public/v1.5.1';
 
 export class SymplaService {
   private token: string;
@@ -26,7 +26,8 @@ export class SymplaService {
         params: { page_size: 1 },
       });
       return response.status === 200;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Sympla testConnection error:', error.response?.status, error.response?.data ? JSON.stringify(error.response.data).substring(0, 300) : error.message);
       return false;
     }
   }
@@ -42,7 +43,7 @@ export class SymplaService {
   async getEventOrders(eventId: string, page: number = 1, pageSize: number = 100): Promise<any> {
     const response = await axios.get(`${SYMPLA_BASE_URL}/events/${eventId}/orders`, {
       headers: this.getHeaders(),
-      params: { page, page_size: pageSize },
+      params: { page, page_size: pageSize, status: true },
     });
     return response.data;
   }

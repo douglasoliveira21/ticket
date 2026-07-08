@@ -113,8 +113,9 @@ export async function importEvents(req: AuthRequest, res: Response) {
       const events = response.data || [];
 
       for (const symplaEvent of events) {
+        const eventId = String(symplaEvent.reference_id || symplaEvent.id);
         const existing = await prisma.event.findUnique({
-          where: { symplaId: String(symplaEvent.id) },
+          where: { symplaId: eventId },
         });
 
         if (!existing) {
@@ -122,7 +123,7 @@ export async function importEvents(req: AuthRequest, res: Response) {
             data: {
               companyId: req.companyId!,
               symplaIntegrationId: integration.id,
-              symplaId: String(symplaEvent.id),
+              symplaId: eventId,
               name: symplaEvent.name || 'Sem nome',
               description: symplaEvent.detail || null,
               startDate: symplaEvent.start_date ? new Date(symplaEvent.start_date) : null,
@@ -130,7 +131,7 @@ export async function importEvents(req: AuthRequest, res: Response) {
               location: symplaEvent.address?.name || null,
               status: symplaEvent.published ? 'active' : 'draft',
               url: symplaEvent.url || null,
-              organizer: symplaEvent.organizer?.name || null,
+              organizer: symplaEvent.host?.name || null,
               origin: 'SYMPLA',
               rawPayload: symplaEvent,
               lastSync: new Date(),
@@ -178,7 +179,9 @@ export async function importEvents(req: AuthRequest, res: Response) {
     res.json({ success: true, data: { imported } });
   } catch (error: any) {
     console.error('Import events error:', error.message);
-    return res.status(500).json({ success: false, error: 'Erro ao importar eventos' });
+    console.error('Import events detail:', error.response?.status, error.response?.data ? JSON.stringify(error.response.data).substring(0, 500) : '');
+    console.error('Import events stack:', error.stack);
+    return res.status(500).json({ success: false, error: 'Erro ao importar eventos', detail: error.message });
   }
 }
 
@@ -230,9 +233,9 @@ export async function syncOrders(req: AuthRequest, res: Response) {
                   fees: 0,
                   netAmount: participant.ticket_sale_price || 0,
                   purchaseDate: participant.order_date ? new Date(participant.order_date) : new Date(),
-                  orderStatus: participant.order_status || 'approved',
+                  orderStatus: participant.order_status === 'A' ? 'approved' : (participant.order_status || 'approved'),
                   ticketType: participant.ticket_name || null,
-                  ticketNumber: participant.ticket_num || null,
+                  ticketNumber: participant.ticket_number || null,
                   origin: 'SYMPLA',
                   rawPayload: participant,
                 },
@@ -322,9 +325,9 @@ export async function syncOrdersByEvent(req: AuthRequest, res: Response) {
                 fees: 0,
                 netAmount: participant.ticket_sale_price || 0,
                 purchaseDate: participant.order_date ? new Date(participant.order_date) : new Date(),
-                orderStatus: participant.order_status || 'approved',
+                orderStatus: participant.order_status === 'A' ? 'approved' : (participant.order_status || 'approved'),
                 ticketType: participant.ticket_name || null,
-                ticketNumber: participant.ticket_num || null,
+                ticketNumber: participant.ticket_number || null,
                 origin: 'SYMPLA',
                 rawPayload: participant,
               },
