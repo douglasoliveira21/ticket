@@ -155,14 +155,14 @@ export async function generateDanfseHtml(data: DanfseData): Promise<string> {
   <!-- Cabeçalho -->
   <div class="header">
     <div class="header-logo">
-      <div style="font-size: 16px; font-weight: bold; color: #003366;">NFS<span style="color: #cc0000;">e</span></div>
-      <div class="nfse-text">Nota Fiscal de<br>Serviço eletrônica</div>
+      <img src="https://vgon.com.br/wp-content/uploads/2026/07/nfse.png" alt="NFS-e" style="width:70px;">
     </div>
     <div class="header-center">
       <h2>DANFSe v1.0</h2>
       <p>Documento Auxiliar da NFS-e</p>
     </div>
     <div class="header-right">
+      <img src="https://vgon.com.br/wp-content/uploads/2026/07/Brasao-Belo-Horizonte.png" alt="Brasão BH" style="width:40px; margin-bottom:4px;">
       <p class="prefeitura">Prefeitura Municipal de Belo Horizonte</p>
       <p style="font-size: 8px; margin-top: 2px;">Secretaria Municipal de Fazenda - SMFA</p>
     </div>
