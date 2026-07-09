@@ -113,7 +113,7 @@ export async function importEvents(req: AuthRequest, res: Response) {
       const events = response.data || [];
 
       for (const symplaEvent of events) {
-        const eventId = String(symplaEvent.reference_id || symplaEvent.id);
+        const eventId = String(symplaEvent.id);
         const existing = await prisma.event.findUnique({
           where: { symplaId: eventId },
         });
@@ -210,43 +210,48 @@ export async function syncOrders(req: AuthRequest, res: Response) {
 
       while (hasMore) {
         try {
-          const response = await service.getEventParticipants(event.symplaId, page);
-          const participants = response.data || [];
+          const response = await service.getEventOrders(event.symplaId, page);
+          const orders = response.data || [];
 
-          for (const participant of participants) {
+          for (const order of orders) {
             const existingOrder = await prisma.order.findUnique({
-              where: { symplaOrderId: String(participant.order_id) },
+              where: { symplaOrderId: String(order.id) },
             });
 
             if (!existingOrder) {
+              const buyerName = `${order.buyer_first_name || ''} ${order.buyer_last_name || ''}`.trim();
+              const invoiceInfo = order.invoice_info || {};
+              const document = invoiceInfo.doc_number || null;
+
               await prisma.order.create({
                 data: {
                   companyId: req.companyId!,
                   eventId: event.id,
-                  symplaOrderId: String(participant.order_id),
-                  symplaParticipantId: String(participant.id),
-                  buyerName: `${participant.first_name || ''} ${participant.last_name || ''}`.trim(),
-                  buyerEmail: participant.email || '',
-                  buyerDocument: participant.document || null,
-                  buyerPhone: participant.phone || null,
-                  amount: participant.ticket_sale_price || 0,
-                  fees: 0,
-                  netAmount: participant.ticket_sale_price || 0,
-                  purchaseDate: participant.order_date ? new Date(participant.order_date) : new Date(),
-                  orderStatus: participant.order_status === 'A' ? 'approved' : (participant.order_status || 'approved'),
-                  ticketType: participant.ticket_name || null,
-                  ticketNumber: participant.ticket_number || null,
+                  symplaOrderId: String(order.id),
+                  symplaParticipantId: null,
+                  buyerName: invoiceInfo.client_name || buyerName,
+                  buyerEmail: order.buyer_email || '',
+                  buyerDocument: document,
+                  buyerPhone: null,
+                  amount: order.order_total_sale_price || 0,
+                  fees: (order.order_total_sale_price || 0) - (order.order_total_net_value || 0),
+                  netAmount: order.order_total_net_value || 0,
+                  purchaseDate: order.order_date ? new Date(order.order_date) : new Date(),
+                  orderStatus: order.order_status === 'APPROVED' ? 'approved' : (order.order_status?.toLowerCase() || 'pending'),
+                  ticketType: order.transaction_type || null,
+                  ticketNumber: null,
                   origin: 'SYMPLA',
-                  rawPayload: participant,
+                  rawPayload: order,
                 },
               });
               totalImported++;
             }
           }
 
-          hasMore = participants.length > 0 && response.pagination?.has_next;
+          hasMore = orders.length > 0 && response.pagination?.has_next;
           page++;
-        } catch (err) {
+        } catch (err: any) {
+          console.error('Sync orders event error:', event.symplaId, err.message);
           hasMore = false;
         }
       }
@@ -302,41 +307,45 @@ export async function syncOrdersByEvent(req: AuthRequest, res: Response) {
 
     while (hasMore) {
       try {
-        const response = await service.getEventParticipants(event.symplaId, page);
-        const participants = response.data || [];
+        const response = await service.getEventOrders(event.symplaId, page);
+        const orders = response.data || [];
 
-        for (const participant of participants) {
+        for (const order of orders) {
           const existingOrder = await prisma.order.findUnique({
-            where: { symplaOrderId: String(participant.order_id) },
+            where: { symplaOrderId: String(order.id) },
           });
 
           if (!existingOrder) {
+            const buyerName = `${order.buyer_first_name || ''} ${order.buyer_last_name || ''}`.trim();
+            const invoiceInfo = order.invoice_info || {};
+            const document = invoiceInfo.doc_number || null;
+
             await prisma.order.create({
               data: {
                 companyId: req.companyId!,
                 eventId: event.id,
-                symplaOrderId: String(participant.order_id),
-                symplaParticipantId: String(participant.id),
-                buyerName: `${participant.first_name || ''} ${participant.last_name || ''}`.trim(),
-                buyerEmail: participant.email || '',
-                buyerDocument: participant.document || null,
-                buyerPhone: participant.phone || null,
-                amount: participant.ticket_sale_price || 0,
-                fees: 0,
-                netAmount: participant.ticket_sale_price || 0,
-                purchaseDate: participant.order_date ? new Date(participant.order_date) : new Date(),
-                orderStatus: participant.order_status === 'A' ? 'approved' : (participant.order_status || 'approved'),
-                ticketType: participant.ticket_name || null,
-                ticketNumber: participant.ticket_number || null,
+                symplaOrderId: String(order.id),
+                symplaParticipantId: null,
+                buyerName: invoiceInfo.client_name || buyerName,
+                buyerEmail: order.buyer_email || '',
+                buyerDocument: document,
+                buyerPhone: null,
+                amount: order.order_total_sale_price || 0,
+                fees: (order.order_total_sale_price || 0) - (order.order_total_net_value || 0),
+                netAmount: order.order_total_net_value || 0,
+                purchaseDate: order.order_date ? new Date(order.order_date) : new Date(),
+                orderStatus: order.order_status === 'APPROVED' ? 'approved' : (order.order_status?.toLowerCase() || 'pending'),
+                ticketType: order.transaction_type || null,
+                ticketNumber: null,
                 origin: 'SYMPLA',
-                rawPayload: participant,
+                rawPayload: order,
               },
             });
             imported++;
           }
         }
 
-        hasMore = participants.length > 0 && response.pagination?.has_next;
+        hasMore = orders.length > 0 && response.pagination?.has_next;
         page++;
       } catch (err) {
         hasMore = false;
