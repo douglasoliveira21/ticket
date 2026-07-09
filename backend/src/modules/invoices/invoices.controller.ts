@@ -88,6 +88,57 @@ export async function downloadInvoiceXml(req: AuthRequest, res: Response) {
   }
 }
 
+export async function downloadInvoicePdf(req: AuthRequest, res: Response) {
+  try {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: req.params.id, companyId: req.companyId },
+      include: {
+        order: { select: { buyerName: true, buyerEmail: true, buyerDocument: true, event: { select: { name: true } } } },
+        company: { select: { razaoSocial: true, cnpj: true, inscricaoMunicipal: true } },
+      },
+    });
+
+    if (!invoice) return res.status(404).json({ success: false, error: 'Nota não encontrada' });
+    if (invoice.status !== 'ISSUED') return res.status(400).json({ success: false, error: 'Nota ainda não foi emitida' });
+
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>NFS-e ${invoice.numeroNota}</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px}h1{color:#333;border-bottom:2px solid #8B1A1A;padding-bottom:10px}.section{margin:20px 0}.section h3{color:#8B1A1A;border-bottom:1px solid #ddd;padding-bottom:5px}table{width:100%;border-collapse:collapse;margin:10px 0}td{padding:8px;border:1px solid #ddd}td:first-child{font-weight:bold;background:#f9f9f9;width:200px}.footer{margin-top:30px;font-size:12px;color:#666;text-align:center;border-top:1px solid #ddd;padding-top:10px}@media print{body{margin:0}}</style></head><body>
+<h1>Nota Fiscal de Serviço Eletrônica - NFS-e</h1>
+<div class="section"><h3>Dados da Nota</h3><table>
+<tr><td>Número da Nota</td><td>${invoice.numeroNota || '-'}</td></tr>
+<tr><td>Código de Verificação</td><td>${invoice.codigoVerificacao || '-'}</td></tr>
+<tr><td>Data de Emissão</td><td>${invoice.dataEmissao ? new Date(invoice.dataEmissao).toLocaleDateString('pt-BR') : '-'}</td></tr>
+</table></div>
+<div class="section"><h3>Prestador de Serviço</h3><table>
+<tr><td>Razão Social</td><td>${invoice.company?.razaoSocial || '-'}</td></tr>
+<tr><td>CNPJ</td><td>${invoice.company?.cnpj || '-'}</td></tr>
+<tr><td>Inscrição Municipal</td><td>${invoice.company?.inscricaoMunicipal || '-'}</td></tr>
+</table></div>
+<div class="section"><h3>Tomador de Serviço</h3><table>
+<tr><td>Nome</td><td>${invoice.order?.buyerName || '-'}</td></tr>
+<tr><td>CPF/CNPJ</td><td>${invoice.order?.buyerDocument || '-'}</td></tr>
+<tr><td>E-mail</td><td>${invoice.order?.buyerEmail || '-'}</td></tr>
+</table></div>
+<div class="section"><h3>Serviço</h3><table>
+<tr><td>Descrição</td><td>${invoice.descricaoServico || '-'}</td></tr>
+<tr><td>Código do Serviço</td><td>${invoice.codigoServico || '-'}</td></tr>
+<tr><td>Evento</td><td>${invoice.order?.event?.name || '-'}</td></tr>
+<tr><td>Valor do Serviço</td><td>R$ ${invoice.valorServico?.toFixed(2) || '0.00'}</td></tr>
+<tr><td>Alíquota ISS</td><td>${invoice.aliquotaIss?.toFixed(2) || '0.00'}%</td></tr>
+<tr><td>Valor ISS</td><td>R$ ${invoice.valorIss?.toFixed(2) || '0.00'}</td></tr>
+</table></div>
+<div class="footer"><p>Documento gerado eletronicamente. Consulte a autenticidade no site da Prefeitura.</p></div>
+</body></html>`;
+
+    const filename = `nfse-${invoice.numeroNota || 'nota'}.html`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(html);
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Erro ao gerar nota fiscal' });
+  }
+}
+
 async function processInvoiceEmission(orderId: string, companyId: string, userId?: string) {
   const order = await prisma.order.findFirst({
     where: { id: orderId, companyId },

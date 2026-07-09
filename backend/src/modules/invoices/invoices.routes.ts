@@ -7,6 +7,7 @@ import {
   retryInvoice,
   cancelInvoice,
   downloadInvoiceXml,
+  downloadInvoicePdf,
 } from './invoices.controller';
 import { authGuard } from '../../common/guards/auth.guard';
 
@@ -16,6 +17,7 @@ invoicesRouter.use(authGuard);
 invoicesRouter.get('/', listInvoices);
 invoicesRouter.get('/:id', getInvoice);
 invoicesRouter.get('/:id/download-xml', downloadInvoiceXml);
+invoicesRouter.get('/:id/download-pdf', downloadInvoicePdf);
 invoicesRouter.post('/issue/:orderId', issueInvoice);
 invoicesRouter.post('/issue-batch', issueBatch);
 invoicesRouter.post('/:id/retry', retryInvoice);

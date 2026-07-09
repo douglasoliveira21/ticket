@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { RotateCcw, Send, FileText, Download, XCircle } from 'lucide-react';
+import { RotateCcw, Send, FileText, Download, XCircle, FileCode, X } from 'lucide-react';
 
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  const [emailModal, setEmailModal] = useState<{ invoiceId: string; buyerName: string; buyerEmail: string } | null>(null);
+  const [emailMessage, setEmailMessage] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, statusFilter],
@@ -26,9 +28,15 @@ export default function InvoicesPage() {
   });
 
   const resendMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/email/resend/${id}`),
-    onSuccess: () => toast.success('E-mail reenviado'),
-    onError: () => toast.error('Erro ao reenviar'),
+    mutationFn: ({ id, message }: { id: string; message: string }) =>
+      api.post(`/email/resend/${id}`, { message }),
+    onSuccess: () => {
+      toast.success('E-mail enviado com sucesso');
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      setEmailModal(null);
+      setEmailMessage('');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro ao enviar'),
   });
 
   const cancelMutation = useMutation({
@@ -55,9 +63,7 @@ export default function InvoicesPage() {
 
   async function handleDownloadXml(invoiceId: string, numeroNota: string | null) {
     try {
-      const response = await api.get(`/invoices/${invoiceId}/download-xml`, {
-        responseType: 'blob',
-      });
+      const response = await api.get(`/invoices/${invoiceId}/download-xml`, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/xml' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -70,6 +76,38 @@ export default function InvoicesPage() {
     } catch {
       toast.error('Erro ao baixar XML da nota');
     }
+  }
+
+  async function handleDownloadPdf(invoiceId: string, numeroNota: string | null) {
+    try {
+      const response = await api.get(`/invoices/${invoiceId}/download-pdf`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'text/html' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nfse-${numeroNota || 'nota'}.html`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      toast.error('Erro ao baixar nota fiscal');
+    }
+  }
+
+  function openEmailModal(invoice: any) {
+    setEmailModal({
+      invoiceId: invoice.id,
+      buyerName: invoice.order?.buyerName || '',
+      buyerEmail: invoice.order?.buyerEmail || '',
+    });
+    setEmailMessage('');
+  }
+
+  function handleSendEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (!emailModal) return;
+    resendMutation.mutate({ id: emailModal.invoiceId, message: emailMessage });
   }
 
   return (
@@ -140,13 +178,37 @@ export default function InvoicesPage() {
                       <td className="py-3 px-2">
                         <div className="flex gap-1">
                           {invoice.status === 'ISSUED' && (
-                            <button
-                              onClick={() => handleDownloadXml(invoice.id, invoice.numeroNota)}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                              title="Baixar XML da nota"
-                            >
-                              <Download className="w-4 h-4" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleDownloadPdf(invoice.id, invoice.numeroNota)}
+                                className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                                title="Baixar nota fiscal"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDownloadXml(invoice.id, invoice.numeroNota)}
+                                className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"
+                                title="Baixar XML"
+                              >
+                                <FileCode className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => openEmailModal(invoice)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                                title="Enviar por e-mail"
+                              >
+                                <Send className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleCancelInvoice(invoice.id, invoice.numeroNota)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                                title="Cancelar nota"
+                                disabled={cancelMutation.isPending}
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
                           {invoice.status === 'ERROR' && (
                             <button
@@ -155,25 +217,6 @@ export default function InvoicesPage() {
                               title="Tentar novamente"
                             >
                               <RotateCcw className="w-4 h-4" />
-                            </button>
-                          )}
-                          {invoice.status === 'ISSUED' && (
-                            <button
-                              onClick={() => resendMutation.mutate(invoice.id)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                              title="Reenviar e-mail"
-                            >
-                              <Send className="w-4 h-4" />
-                            </button>
-                          )}
-                          {invoice.status === 'ISSUED' && (
-                            <button
-                              onClick={() => handleCancelInvoice(invoice.id, invoice.numeroNota)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                              title="Cancelar nota"
-                              disabled={cancelMutation.isPending}
-                            >
-                              <XCircle className="w-4 h-4" />
                             </button>
                           )}
                         </div>
@@ -202,6 +245,53 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de envio de e-mail */}
+      {emailModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Enviar Nota por E-mail</h3>
+              <button onClick={() => setEmailModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendEmail} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Destinatário</label>
+                <p className="text-sm text-gray-600">{emailModal.buyerName} ({emailModal.buyerEmail})</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mensagem personalizada <span className="text-gray-400">(opcional)</span>
+                </label>
+                <textarea
+                  value={emailMessage}
+                  onChange={e => setEmailMessage(e.target.value)}
+                  className="input-field min-h-[100px]"
+                  placeholder="Escreva uma mensagem para o destinatário..."
+                />
+              </div>
+
+              <p className="text-xs text-gray-500">
+                O e-mail será enviado com a nota fiscal e o XML em anexo.
+              </p>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setEmailModal(null)} className="btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={resendMutation.isPending} className="btn-primary flex items-center gap-2">
+                  <Send className="w-4 h-4" />
+                  {resendMutation.isPending ? 'Enviando...' : 'Enviar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

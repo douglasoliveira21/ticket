@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import prisma from '../../common/utils/prisma';
 import { decrypt } from '../../common/utils/encryption';
 
-export async function sendInvoiceEmail(companyId: string, order: any, invoice: any) {
+export async function sendInvoiceEmail(companyId: string, order: any, invoice: any, customMessage?: string) {
   const emailSettings = await prisma.emailSettings.findUnique({
     where: { companyId },
   });
@@ -41,6 +41,7 @@ export async function sendInvoiceEmail(companyId: string, order: any, invoice: a
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h2 style="color: #8B1A1A;">Nota Fiscal de Serviço Eletrônica</h2>
       <p>Olá, <strong>${order.buyerName}</strong>!</p>
+      ${customMessage ? `<p style="white-space: pre-wrap;">${customMessage}</p><hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">` : ''}
       <p>Segue sua Nota Fiscal referente à compra do evento:</p>
       <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
         <tr style="background: #f5f5f5;">
@@ -71,11 +72,23 @@ export async function sendInvoiceEmail(companyId: string, order: any, invoice: a
     </div>
   `;
 
+  // Preparar anexos
+  const attachments: any[] = [];
+  const xmlContent = invoice.xmlRetorno || invoice.xmlEnvio;
+  if (xmlContent) {
+    attachments.push({
+      filename: `nfse-${invoice.numeroNota || 'nota'}.xml`,
+      content: xmlContent,
+      contentType: 'application/xml',
+    });
+  }
+
   const mailOptions = {
     from: `"${smtpFromName}" <${smtpFrom}>`,
     to: order.buyerEmail,
     subject,
     html: htmlBody,
+    attachments,
   };
 
   await transporter.sendMail(mailOptions);
@@ -99,7 +112,7 @@ export async function sendInvoiceEmail(companyId: string, order: any, invoice: a
   });
 }
 
-export async function resendInvoiceEmail(invoiceId: string, companyId: string) {
+export async function resendInvoiceEmail(invoiceId: string, companyId: string, customMessage?: string) {
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, companyId },
     include: { order: { include: { event: true } } },
@@ -108,5 +121,5 @@ export async function resendInvoiceEmail(invoiceId: string, companyId: string) {
   if (!invoice) throw new Error('Nota não encontrada');
   if (invoice.status !== 'ISSUED') throw new Error('Nota não emitida');
 
-  await sendInvoiceEmail(companyId, invoice.order, invoice);
+  await sendInvoiceEmail(companyId, invoice.order, invoice, customMessage);
 }

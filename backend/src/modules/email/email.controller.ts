@@ -61,7 +61,8 @@ export async function updateEmailSettings(req: AuthRequest, res: Response) {
 
 export async function resendEmail(req: AuthRequest, res: Response) {
   try {
-    await resendInvoiceEmail(req.params.invoiceId, req.companyId!);
+    const customMessage = req.body?.message || undefined;
+    await resendInvoiceEmail(req.params.invoiceId, req.companyId!, customMessage);
     res.json({ success: true, message: 'E-mail reenviado com sucesso' });
   } catch (error: any) {
     return res.status(400).json({ success: false, error: error.message });
