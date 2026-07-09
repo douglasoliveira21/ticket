@@ -187,10 +187,28 @@ export async function downloadInvoicePdf(req: AuthRequest, res: Response) {
     };
 
     const html = await generateDanfseHtml(danfseData);
-    const filename = `danfse-${invoice.numeroNota || 'nota'}.html`;
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(html);
+
+    // Gerar PDF a partir do HTML
+    let pdfBuffer: Buffer | null = null;
+    try {
+      const { htmlToPdf } = await import('../../common/utils/pdf-generator');
+      pdfBuffer = await htmlToPdf(html);
+    } catch (err: any) {
+      console.warn('PDF generation failed, falling back to HTML:', err.message);
+    }
+
+    if (pdfBuffer) {
+      const filename = `danfse-${invoice.numeroNota || 'nota'}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(pdfBuffer);
+    } else {
+      // Fallback: retornar HTML se PDF falhar
+      const filename = `danfse-${invoice.numeroNota || 'nota'}.html`;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(html);
+    }
   } catch (error: any) {
     console.error('Download PDF error:', error);
     return res.status(500).json({ success: false, error: 'Erro ao gerar nota fiscal' });

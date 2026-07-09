@@ -17,6 +17,7 @@
     "@types/qrcode": "^1.5.6",
     "axios": "^1.6.7",
     "bcryptjs": "^2.4.3",
+    "chromium": "^3.0.3",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.5",
@@ -26,6 +27,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.9",
+    "puppeteer-core": "^25.3.0",
     "qrcode": "^1.5.4",
     "uuid": "^9.0.0",
     "zod": "^3.22.4"

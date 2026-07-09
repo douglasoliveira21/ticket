@@ -81,11 +81,13 @@ export default function InvoicesPage() {
   async function handleDownloadPdf(invoiceId: string, numeroNota: string | null) {
     try {
       const response = await api.get(`/invoices/${invoiceId}/download-pdf`, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'text/html' });
+      const contentType = String(response.headers['content-type'] || 'application/pdf');
+      const ext = contentType.includes('pdf') ? 'pdf' : 'html';
+      const blob = new Blob([response.data], { type: contentType });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `nfse-${numeroNota || 'nota'}.html`;
+      a.download = `danfse-${numeroNota || 'nota'}.${ext}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

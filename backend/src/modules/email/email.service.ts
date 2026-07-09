@@ -83,6 +83,66 @@ export async function sendInvoiceEmail(companyId: string, order: any, invoice: a
     });
   }
 
+  // Gerar PDF da DANFSe e anexar
+  try {
+    const { generateDanfseHtml } = await import('../invoices/danfse-template');
+    const { htmlToPdf } = await import('../../common/utils/pdf-generator');
+
+    const dataEmissao = invoice.dataEmissao ? new Date(invoice.dataEmissao) : new Date();
+    const dataFormatada = dataEmissao.toLocaleDateString('pt-BR');
+    const dataHoraFormatada = `${dataFormatada} ${dataEmissao.toLocaleTimeString('pt-BR')}`;
+    const chaveAcesso = invoice.codigoVerificacao || invoice.numeroNota || '';
+
+    const danfseData = {
+      chaveAcesso,
+      numeroNfse: invoice.numeroNota || '-',
+      competencia: dataFormatada,
+      dataHoraEmissao: dataHoraFormatada,
+      numeroDps: invoice.numeroRps || '-',
+      serieDps: invoice.serieRps || '1',
+      dataHoraEmissaoDps: dataHoraFormatada,
+      prestadorCnpj: '-', prestadorInscricaoMunicipal: '-', prestadorTelefone: '-',
+      prestadorNome: '-', prestadorEmail: '-', prestadorEndereco: '-',
+      prestadorMunicipio: 'BELO HORIZONTE - MG', prestadorCep: '-',
+      simplesNacional: 'Não optante', regimeApuracao: '-',
+      tomadorCpfCnpj: order.buyerDocument || '-', tomadorInscricaoMunicipal: '-',
+      tomadorTelefone: '-', tomadorNome: order.buyerName || '-',
+      tomadorEmail: order.buyerEmail || '-', tomadorEndereco: '-',
+      tomadorMunicipio: 'Belo Horizonte - MG', tomadorCep: '-',
+      codigoTribNacional: invoice.codigoServico || '-', codigoTribMunicipal: invoice.codigoServico || '-',
+      localPrestacao: 'BELO HORIZONTE - MG', paisPrestacao: '-',
+      descricaoServico: invoice.descricaoServico || eventName,
+      tributacaoIssqn: 'Operação Tributável', paisResultado: '-',
+      municipioIncidencia: 'BELO HORIZONTE - MG', regimeEspecial: 'Nenhum',
+      tipoImunidade: '-', suspensaoExigibilidade: 'Não',
+      numeroProcessoSuspensao: '-', beneficioMunicipal: '-',
+      valorServico: `R$ ${order.amount.toFixed(2)}`, descontoIncondicionado: '-',
+      totalDeducoes: '-', calculoBm: '-',
+      bcIssqn: `R$ ${order.amount.toFixed(2)}`,
+      aliquotaAplicada: `${(invoice.aliquotaIss || 0).toFixed(2)}%`,
+      retencaoIssqn: 'Não Retido',
+      issqnApurado: `R$ ${(invoice.valorIss || 0).toFixed(2)}`,
+      irrf: '-', contribuicaoPrevidenciaria: '-', contribuicoesSociais: '-',
+      descricaoContribSociais: '-', pisDebito: '-', cofinsDebito: '-',
+      valorServicoTotal: `R$ ${order.amount.toFixed(2)}`,
+      descontoCondicionado: '-', descontoIncondicionadoTotal: '-',
+      issqnRetido: '-', totalRetencoesFederais: '-', pisCofinsDebito: '-',
+      valorLiquido: `R$ ${(order.amount - (invoice.valorIss || 0)).toFixed(2)}`,
+      tributosFederais: '-', tributosEstaduais: '-', tributosMunicipais: '-',
+      informacoesComplementares: `Chave de acesso: ${chaveAcesso}`,
+    };
+
+    const html = await generateDanfseHtml(danfseData);
+    const pdfBuffer = await htmlToPdf(html);
+    attachments.push({
+      filename: `danfse-${invoice.numeroNota || 'nota'}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf',
+    });
+  } catch (pdfErr: any) {
+    console.warn('Could not generate PDF for email attachment:', pdfErr.message);
+  }
+
   const mailOptions = {
     from: `"${smtpFromName}" <${smtpFrom}>`,
     to: order.buyerEmail,
