@@ -59,6 +59,35 @@ export async function getInvoice(req: AuthRequest, res: Response) {
   }
 }
 
+export async function downloadInvoiceXml(req: AuthRequest, res: Response) {
+  try {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: req.params.id, companyId: req.companyId },
+      select: { numeroNota: true, xmlEnvio: true, xmlRetorno: true, status: true },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, error: 'Nota não encontrada' });
+    }
+
+    if (invoice.status !== 'ISSUED') {
+      return res.status(400).json({ success: false, error: 'Nota ainda não foi emitida' });
+    }
+
+    const xml = invoice.xmlRetorno || invoice.xmlEnvio || '';
+    if (!xml) {
+      return res.status(404).json({ success: false, error: 'XML da nota não disponível' });
+    }
+
+    const filename = `nfse-${invoice.numeroNota || 'rascunho'}.xml`;
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(xml);
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Erro ao baixar XML' });
+  }
+}
+
 async function processInvoiceEmission(orderId: string, companyId: string, userId?: string) {
   const order = await prisma.order.findFirst({
     where: { id: orderId, companyId },

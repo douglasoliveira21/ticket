@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { RotateCcw, Send, FileText } from 'lucide-react';
+import { RotateCcw, Send, FileText, Download } from 'lucide-react';
 
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
@@ -33,6 +33,25 @@ export default function InvoicesPage() {
 
   const invoices = data?.data || [];
   const pagination = data?.pagination;
+
+  async function handleDownloadXml(invoiceId: string, numeroNota: string | null) {
+    try {
+      const response = await api.get(`/invoices/${invoiceId}/download-xml`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: 'application/xml' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nfse-${numeroNota || 'nota'}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      toast.error('Erro ao baixar XML da nota');
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -101,6 +120,15 @@ export default function InvoicesPage() {
                       </td>
                       <td className="py-3 px-2">
                         <div className="flex gap-1">
+                          {invoice.status === 'ISSUED' && (
+                            <button
+                              onClick={() => handleDownloadXml(invoice.id, invoice.numeroNota)}
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                              title="Baixar XML da nota"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          )}
                           {invoice.status === 'ERROR' && (
                             <button
                               onClick={() => retryMutation.mutate(invoice.id)}
