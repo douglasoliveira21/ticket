@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { RotateCcw, Send, FileText, Download } from 'lucide-react';
+import { RotateCcw, Send, FileText, Download, XCircle } from 'lucide-react';
 
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
@@ -31,8 +31,27 @@ export default function InvoicesPage() {
     onError: () => toast.error('Erro ao reenviar'),
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: ({ id, codigoCancelamento }: { id: string; codigoCancelamento: string }) =>
+      api.post(`/invoices/${id}/cancel`, { codigoCancelamento }),
+    onSuccess: () => {
+      toast.success('Nota cancelada com sucesso');
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro ao cancelar'),
+  });
+
   const invoices = data?.data || [];
   const pagination = data?.pagination;
+
+  function handleCancelInvoice(invoiceId: string, numeroNota: string | null) {
+    const motivo = window.prompt(
+      `Cancelar nota ${numeroNota || ''}?\n\nInforme o motivo:\n1 - Erro na emissão\n2 - Serviço não prestado\n3 - Duplicidade\n\nDigite 1, 2 ou 3:`,
+      '2'
+    );
+    if (!motivo || !['1', '2', '3'].includes(motivo)) return;
+    cancelMutation.mutate({ id: invoiceId, codigoCancelamento: motivo });
+  }
 
   async function handleDownloadXml(invoiceId: string, numeroNota: string | null) {
     try {
@@ -145,6 +164,16 @@ export default function InvoicesPage() {
                               title="Reenviar e-mail"
                             >
                               <Send className="w-4 h-4" />
+                            </button>
+                          )}
+                          {invoice.status === 'ISSUED' && (
+                            <button
+                              onClick={() => handleCancelInvoice(invoice.id, invoice.numeroNota)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                              title="Cancelar nota"
+                              disabled={cancelMutation.isPending}
+                            >
+                              <XCircle className="w-4 h-4" />
                             </button>
                           )}
                         </div>

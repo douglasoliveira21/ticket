@@ -348,6 +348,80 @@ export class NfseBHService {
     };
   }
 
+  /**
+   * Cancela NFS-e na Prefeitura de BH
+   */
+  async cancelarNfse(numeroNota: string, cnpj: string, inscricaoMunicipal: string, codigoCancelamento: string = '2'): Promise<NfseResult> {
+    if (this.ambiente === 'homologacao') {
+      return {
+        success: true,
+        xmlRetorno: `<CancelarNfseResponse><Confirmacao><NumeroNfse>${numeroNota}</NumeroNfse><Status>Cancelada</Status></Confirmacao></CancelarNfseResponse>`,
+      };
+    }
+
+    if (!this.companyId) {
+      return { success: false, errorMessage: 'ID da empresa não configurado.' };
+    }
+
+    const cert = await loadCompanyCertificate(this.companyId);
+    if (!cert) {
+      return { success: false, errorMessage: 'Certificado digital não configurado.' };
+    }
+
+    const xmlCancelamento = `<?xml version="1.0" encoding="UTF-8"?>
+<CancelarNfseEnvio xmlns="http://www.abrasf.org.br/nfse.xsd">
+  <Pedido>
+    <InfPedidoCancelamento Id="cancel_${numeroNota}">
+      <IdentificacaoNfse>
+        <Numero>${numeroNota}</Numero>
+        <CpfCnpj>
+          <Cnpj>${cnpj}</Cnpj>
+        </CpfCnpj>
+        <InscricaoMunicipal>${inscricaoMunicipal}</InscricaoMunicipal>
+        <CodigoMunicipio>3106200</CodigoMunicipio>
+      </IdentificacaoNfse>
+      <CodigoCancelamento>${codigoCancelamento}</CodigoCancelamento>
+    </InfPedidoCancelamento>
+  </Pedido>
+</CancelarNfseEnvio>`;
+
+    try {
+      const soapEnvelope = this.buildSoapEnvelope('CancelarNfse', xmlCancelamento);
+      const response = await this.callWebservice(soapEnvelope, cert.buffer, cert.password);
+      return this.parseCancelResponse(response);
+    } catch (error: any) {
+      return { success: false, errorMessage: error.message || 'Erro ao cancelar NFS-e' };
+    }
+  }
+
+  /**
+   * Parse da resposta de cancelamento
+   */
+  private parseCancelResponse(xmlResponse: string): NfseResult {
+    const erroMatch = xmlResponse.match(/<MensagemRetorno>[\s\S]*?<Codigo>(.*?)<\/Codigo>[\s\S]*?<Mensagem>(.*?)<\/Mensagem>/);
+    if (erroMatch) {
+      return {
+        success: false,
+        errorMessage: `Erro ${erroMatch[1]}: ${erroMatch[2]}`,
+        xmlRetorno: xmlResponse,
+      };
+    }
+
+    const confirmacao = xmlResponse.match(/<Confirmacao>|<RetCancelamento>/);
+    if (confirmacao) {
+      return {
+        success: true,
+        xmlRetorno: xmlResponse,
+      };
+    }
+
+    return {
+      success: false,
+      errorMessage: 'Resposta de cancelamento não reconhecida',
+      xmlRetorno: xmlResponse,
+    };
+  }
+
   private escapeXml(text: string): string {
     return text
       .replace(/&/g, '&amp;')

@@ -312,23 +312,84 @@ export async function cancelInvoice(req: AuthRequest, res: Response) {
       return res.status(404).json({ success: false, error: 'Nota não encontrada' });
     }
 
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: { status: 'CANCELLED' },
+    if (invoice.status !== 'ISSUED') {
+      return res.status(400).json({ success: false, error: 'Somente notas emitidas podem ser canceladas' });
+    }
+
+    if (!invoice.numeroNota) {
+      return res.status(400).json({ success: false, error: 'Nota sem número - não pode ser cancelada na prefeitura' });
+    }
+
+    // Buscar dados da empresa e configurações fiscais
+    const company = await prisma.company.findUnique({ where: { id: req.companyId } });
+    const fiscalSettings = await prisma.fiscalSettings.findUnique({ where: { companyId: req.companyId } });
+
+    if (!company || !company.cnpj || !company.inscricaoMunicipal) {
+      return res.status(400).json({ success: false, error: 'Dados fiscais da empresa incompletos' });
+    }
+
+    // Código de cancelamento: 1=Erro na emissão, 2=Serviço não prestado, 3=Duplicidade
+    const codigoCancelamento = req.body?.codigoCancelamento || '2';
+
+    // Chamar a API da PBH para cancelar
+    const nfseService = new NfseBHService({
+      ambiente: fiscalSettings?.ambiente || 'homologacao',
+      urlWebservice: fiscalSettings?.urlWebservice || undefined,
+      usuario: fiscalSettings?.usuarioWebservice || undefined,
+      senha: fiscalSettings?.senhaWebservice || undefined,
+      companyId: req.companyId,
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: req.userId,
-        companyId: req.companyId,
-        action: 'CANCEL_NFSE',
-        entity: 'invoice',
-        entityId: invoice.id,
-      },
-    });
+    const result = await nfseService.cancelarNfse(
+      invoice.numeroNota,
+      company.cnpj,
+      company.inscricaoMunicipal,
+      codigoCancelamento
+    );
 
-    res.json({ success: true, message: 'Nota cancelada' });
-  } catch (error) {
+    if (result.success) {
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { status: 'CANCELLED' },
+      });
+
+      await prisma.invoiceAttempt.create({
+        data: {
+          invoiceId: invoice.id,
+          status: 'success',
+          requestXml: `CancelarNfse - Nota: ${invoice.numeroNota}`,
+          responseXml: result.xmlRetorno || null,
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userId: req.userId,
+          companyId: req.companyId,
+          action: 'CANCEL_NFSE',
+          entity: 'invoice',
+          entityId: invoice.id,
+          details: { numeroNota: invoice.numeroNota, codigoCancelamento },
+          ip: req.ip,
+        },
+      });
+
+      res.json({ success: true, message: 'Nota cancelada com sucesso na prefeitura' });
+    } else {
+      await prisma.invoiceAttempt.create({
+        data: {
+          invoiceId: invoice.id,
+          status: 'error',
+          requestXml: `CancelarNfse - Nota: ${invoice.numeroNota}`,
+          responseXml: result.xmlRetorno || null,
+          errorMessage: result.errorMessage,
+        },
+      });
+
+      return res.status(400).json({ success: false, error: result.errorMessage || 'Erro ao cancelar na prefeitura' });
+    }
+  } catch (error: any) {
+    console.error('Cancel invoice error:', error);
     return res.status(500).json({ success: false, error: 'Erro ao cancelar nota' });
   }
 }
