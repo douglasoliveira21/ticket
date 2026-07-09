@@ -1,4 +1,5 @@
 import QRCode from 'qrcode';
+import { NFSE_LOGO_BASE64, BRASAO_BH_BASE64 } from './danfse-assets';
 
 export interface DanfseData {
   // Dados da nota
@@ -155,14 +156,14 @@ export async function generateDanfseHtml(data: DanfseData): Promise<string> {
   <!-- Cabeçalho -->
   <div class="header">
     <div class="header-logo">
-      <img src="https://vgon.com.br/wp-content/uploads/2026/07/nfse.png" alt="NFS-e" style="width:70px;">
+      <img src="${NFSE_LOGO_BASE64}" alt="NFS-e" style="width:70px;">
     </div>
     <div class="header-center">
       <h2>DANFSe v1.0</h2>
       <p>Documento Auxiliar da NFS-e</p>
     </div>
     <div class="header-right">
-      <img src="https://vgon.com.br/wp-content/uploads/2026/07/Brasao-Belo-Horizonte.png" alt="Brasão BH" style="width:40px; margin-bottom:4px;">
+      <img src="${BRASAO_BH_BASE64}" alt="Brasão BH" style="width:40px; margin-bottom:4px;">
       <p class="prefeitura">Prefeitura Municipal de Belo Horizonte</p>
       <p style="font-size: 8px; margin-top: 2px;">Secretaria Municipal de Fazenda - SMFA</p>
     </div>
