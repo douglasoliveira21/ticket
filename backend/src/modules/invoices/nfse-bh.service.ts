@@ -303,20 +303,31 @@ export class NfseBHService {
         return;
       }
 
+      const headers: Record<string, string | number> = {
+        'Content-Type': 'text/xml; charset=utf-8',
+        'Content-Length': Buffer.byteLength(soapXml, 'utf-8'),
+        'SOAPAction': '',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/xml, application/xml, */*',
+        'Accept-Encoding': 'identity',
+        'Connection': 'close',
+      };
+
+      // O BHISS Digital exige autenticação (CNPJ/CPF + senha) cadastrada no
+      // credenciamento do webservice, além do certificado A1 usado como TLS
+      // client-cert. Sem o header Authorization, a chamada é rejeitada.
+      if (this.usuario && this.senha) {
+        headers['Authorization'] = 'Basic ' + Buffer.from(`${this.usuario}:${this.senha}`).toString('base64');
+      } else {
+        console.warn('[NFSe-BH] Usuário/senha do webservice não configurados em Configurações Fiscais — chamada será feita sem Authorization.');
+      }
+
       const options: https.RequestOptions = {
         hostname: url.hostname,
         port: 443,
         path: url.pathname,
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/xml; charset=utf-8',
-          'Content-Length': Buffer.byteLength(soapXml, 'utf-8'),
-          'SOAPAction': '',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/xml, application/xml, */*',
-          'Accept-Encoding': 'identity',
-          'Connection': 'close',
-        },
+        headers,
         cert: certPem,
         key: keyPem,
         rejectUnauthorized: true,
