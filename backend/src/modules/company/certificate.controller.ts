@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../../common/guards/auth.guard';
 import prisma from '../../common/utils/prisma';
 import { encrypt, decrypt } from '../../common/utils/encryption';
-import tls from 'tls';
+import { readPfx } from '../../common/utils/pfx';
 
 /**
  * Upload do Certificado Digital A1 (.pfx/.p12)
@@ -179,44 +179,18 @@ export async function deleteCertificate(req: AuthRequest, res: Response) {
 }
 
 /**
- * Lê e valida um certificado PFX/P12
- * Tenta validar com tls.createSecureContext, com fallback para aceitação direta
+ * Lê e valida um certificado PFX/P12 usando node-forge (parser ASN.1/PKCS12
+ * puro em JS, que não depende do OpenSSL do Node/container e por isso não
+ * falha com "Unsupported PKCS12 PFX data" em certificados A1 antigos que
+ * usam criptografia legada, ex: RC2-40-CBC).
  */
 function parsePfxCertificate(buffer: Buffer, password: string): { subject: string; validFrom: Date; validTo: Date } {
-  // Verificar se o buffer tem conteúdo mínimo de um PFX
   if (buffer.length < 100) {
     throw new Error('Arquivo muito pequeno para ser um certificado válido');
   }
 
-  // Tentar validar com tls.createSecureContext
-  try {
-    tls.createSecureContext({
-      pfx: buffer,
-      passphrase: password,
-    });
-  } catch (err: any) {
-    // Em alguns ambientes (Alpine/musl), o erro pode ser genérico
-    // Verificar se é realmente senha errada ou problema de compatibilidade
-    const msg = (err.message || '').toLowerCase();
-    if (msg.includes('mac verify failure') || msg.includes('bad decrypt') || msg.includes('wrong password')) {
-      throw new Error('Senha incorreta');
-    }
-    // Se o erro for outro (ex: unsupported, legacy), aceitar o certificado
-    // pois pode ser problema de compatibilidade do OpenSSL no container
-    console.warn('Certificate validation warning (accepting anyway):', err.message);
-  }
-
-  // Certificado A1 tem validade padrão de 1 ano
-  // Sem uma lib ASN.1 dedicada, estimamos a validade
-  const now = new Date();
-  const validFrom = now;
-  const validTo = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
-
-  return {
-    subject: 'Certificado A1 validado',
-    validFrom,
-    validTo,
-  };
+  const { subject, validFrom, validTo } = readPfx(buffer, password);
+  return { subject, validFrom, validTo };
 }
 
 /**

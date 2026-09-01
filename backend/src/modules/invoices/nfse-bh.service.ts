@@ -18,6 +18,7 @@ import https from 'https';
 import crypto from 'crypto';
 import { decrypt } from '../../common/utils/encryption';
 import { loadCompanyCertificate } from '../company/certificate.controller';
+import { readPfx } from '../../common/utils/pfx';
 
 export interface NfseData {
   // Prestador
@@ -270,6 +271,20 @@ export class NfseBHService {
     return new Promise((resolve, reject) => {
       const url = new URL(this.urlWebservice);
 
+      // Usa node-forge para extrair cert/key em PEM do PFX ao invés de passar
+      // o PFX diretamente ao OpenSSL (que rejeita certificados A1 antigos com
+      // criptografia legada, ex: RC2-40-CBC, com "Unsupported PKCS12 PFX data").
+      let certPem: string;
+      let keyPem: string;
+      try {
+        const parsed = readPfx(pfxBuffer, pfxPassword);
+        certPem = parsed.cert;
+        keyPem = parsed.key;
+      } catch (err: any) {
+        reject(new Error(`Erro ao processar certificado digital: ${err.message}`));
+        return;
+      }
+
       const options: https.RequestOptions = {
         hostname: url.hostname,
         port: 443,
@@ -280,8 +295,8 @@ export class NfseBHService {
           'Content-Length': Buffer.byteLength(soapXml, 'utf-8'),
           'SOAPAction': '',
         },
-        pfx: pfxBuffer,
-        passphrase: pfxPassword,
+        cert: certPem,
+        key: keyPem,
         rejectUnauthorized: true,
       };
 
