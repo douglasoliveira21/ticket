@@ -16,8 +16,6 @@ export default function FiscalSettingsPage() {
   });
   const [certPassword, setCertPassword] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [usuarioWebservice, setUsuarioWebservice] = useState('');
-  const [senhaWebservice, setSenhaWebservice] = useState('');
 
   const { data } = useQuery({
     queryKey: ['fiscal-settings'],
@@ -81,14 +79,7 @@ export default function FiscalSettingsPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const payload: any = { ...form };
-    if (usuarioWebservice) payload.usuarioWebservice = usuarioWebservice;
-    if (senhaWebservice) payload.senhaWebservice = senhaWebservice;
-    mutation.mutate(payload, {
-      onSuccess: () => {
-        setUsuarioWebservice('');
-        setSenhaWebservice('');
-      },
-    });
+    mutation.mutate(payload);
   }
 
   function handleCertUpload(e: React.FormEvent) {
@@ -301,46 +292,11 @@ export default function FiscalSettingsPage() {
           </div>
         </div>
 
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-1">Credenciais do Webservice (BHISS Digital)</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Usuário (CNPJ/CPF) e senha obtidos no credenciamento do webservice de NFS-e no portal da PBH.
-            Exigidos pela prefeitura além do certificado digital A1.
-          </p>
-          {data?.hasCredentials && (
-            <div className="flex items-center gap-2 mb-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              <CheckCircle className="w-4 h-4" />
-              Credenciais já configuradas. Preencha os campos abaixo somente para substituí-las.
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Usuário (CNPJ/CPF)</label>
-              <input
-                value={usuarioWebservice}
-                onChange={e => setUsuarioWebservice(e.target.value)}
-                className="input-field"
-                placeholder={data?.hasCredentials ? '••••••••••' : 'CNPJ ou CPF cadastrado'}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-              <input
-                type="password"
-                value={senhaWebservice}
-                onChange={e => setSenhaWebservice(e.target.value)}
-                className="input-field"
-                placeholder={data?.hasCredentials ? '••••••••••' : 'Senha do webservice'}
-              />
-            </div>
-          </div>
-        </div>
-
         <div className="card bg-yellow-50 border-yellow-200">
           <h4 className="font-medium text-yellow-800 mb-2">⚠️ Importante</h4>
           <ul className="text-sm text-yellow-700 space-y-1 list-disc pl-4">
             <li>Em modo Homologação, as notas são simuladas (não são enviadas à Prefeitura).</li>
-            <li>Para Produção, é necessário o certificado digital A1 (enviado acima) e as credenciais do webservice.</li>
+            <li>Para Produção, é necessário o certificado digital A1 (enviado acima).</li>
             <li>Configure primeiro os dados da empresa (CNPJ, Inscrição Municipal, código de serviço).</li>
           </ul>
         </div>
