@@ -267,7 +267,20 @@ export class NfseBHService {
   /**
    * Realiza a chamada HTTPS ao webservice usando o certificado A1 como client certificate
    */
+  /**
+   * Loga o IP de saída do servidor (fire-and-forget) para diagnosticar
+   * bloqueios de WAF/firewall da prefeitura que dependem do IP de origem.
+   */
+  private logOutboundIp(): void {
+    https.get('https://api.ipify.org', (res) => {
+      let ip = '';
+      res.on('data', (chunk) => { ip += chunk; });
+      res.on('end', () => console.log(`[NFSe-BH] IP de saída do servidor: ${ip}`));
+    }).on('error', () => { /* diagnóstico opcional, ignora falha */ });
+  }
+
   private callWebservice(soapXml: string, pfxBuffer: Buffer, pfxPassword: string): Promise<string> {
+    this.logOutboundIp();
     return new Promise((resolve, reject) => {
       const url = new URL(this.urlWebservice);
 
@@ -311,10 +324,7 @@ export class NfseBHService {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             resolve(data);
           } else {
-            const diagHeaders = ['x-gocache-cache', 'x-gocache-node', 'x-request-id', 'retry-after', 'cf-ray']
-              .map((h) => `${h}=${res.headers[h] ?? '-'}`)
-              .join(', ');
-            console.error(`[NFSe-BH] Webservice respondeu ${res.statusCode}. Headers: ${diagHeaders}. Body: ${data.substring(0, 500)}`);
+            console.error(`[NFSe-BH] Webservice respondeu ${res.statusCode}. Headers: ${JSON.stringify(res.headers)}. Body: ${data.substring(0, 500)}`);
             reject(new Error(`Webservice retornou status ${res.statusCode}: ${data.substring(0, 500)}`));
           }
         });
