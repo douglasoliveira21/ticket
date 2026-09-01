@@ -3,8 +3,8 @@
  * 
  * Baseado na documentação do BHISS Digital:
  * - WebService ABRASF 2.01
- * - URL Homologação: https://bhissdigital.pbh.gov.br/bhiss-ws/nfse?wsdl
- * - URL Produção: https://bhissdigital.pbh.gov.br/bhiss-ws/nfse?wsdl
+ * - URL Homologação: https://bhisshomologaws.pbh.gov.br/bhiss-ws/nfse?wsdl
+ * - URL Produção: https://bhissdigitalws.pbh.gov.br/bhiss-ws/nfse?wsdl
  * 
  * Operações suportadas:
  * - GerarNfse (RPS individual)
@@ -68,10 +68,15 @@ export class NfseBHService {
     companyId?: string;
   }) {
     this.ambiente = config.ambiente;
+    // A PBH descontinuou bhissdigital.pbh.gov.br / bhisshomologa.pbh.gov.br em
+    // 18/02/2024, migrando para os subdomínios com sufixo "ws" abaixo. O
+    // domínio antigo permanece no ar (por trás do GoCache) mas não roteia
+    // mais para o webservice real, retornando bloqueio/404 para qualquer
+    // chamada.
     this.urlWebservice = config.urlWebservice ||
       (config.ambiente === 'producao'
-        ? 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse'
-        : 'https://bhissdigital.pbh.gov.br/bhiss-ws/nfse');
+        ? 'https://bhissdigitalws.pbh.gov.br/bhiss-ws/nfse'
+        : 'https://bhisshomologaws.pbh.gov.br/bhiss-ws/nfse');
     this.usuario = config.usuario ? decrypt(config.usuario) : undefined;
     this.senha = config.senha ? decrypt(config.senha) : undefined;
     this.companyId = config.companyId;
