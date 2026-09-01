@@ -311,6 +311,10 @@ export class NfseBHService {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             resolve(data);
           } else {
+            const diagHeaders = ['x-gocache-cache', 'x-gocache-node', 'x-request-id', 'retry-after', 'cf-ray']
+              .map((h) => `${h}=${res.headers[h] ?? '-'}`)
+              .join(', ');
+            console.error(`[NFSe-BH] Webservice respondeu ${res.statusCode}. Headers: ${diagHeaders}. Body: ${data.substring(0, 500)}`);
             reject(new Error(`Webservice retornou status ${res.statusCode}: ${data.substring(0, 500)}`));
           }
         });
