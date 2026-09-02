@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import prisma from '../../common/utils/prisma';
 import { AuthRequest } from '../../common/guards/auth.guard';
-import { NfseBHService, NfseData } from './nfse-bh.service';
+import { NfseNacionalService, NfseData } from './nfse-nacional.service';
 import { sendInvoiceEmail } from '../email/email.service';
 
 export async function listInvoices(req: AuthRequest, res: Response) {
@@ -285,13 +285,13 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
     dataEmissao: new Date(),
   };
 
-  // Call NFS-e service
-  const nfseService = new NfseBHService({
+  // Call NFS-e service (Sistema Nacional NFS-e - obrigatorio para BH desde 01/01/2026)
+  const nfseService = new NfseNacionalService({
     ambiente: fiscalSettings?.ambiente || 'homologacao',
-    urlWebservice: fiscalSettings?.urlWebservice || undefined,
-    usuario: fiscalSettings?.usuarioWebservice || undefined,
-    senha: fiscalSettings?.senhaWebservice || undefined,
     companyId,
+    razaoSocialPrestador: company.razaoSocial,
+    regimeTributario: company.regimeTributario,
+    cTribNac: company.cTribNac,
   });
 
   const result = await nfseService.emitirNfse(nfseData);
@@ -301,7 +301,7 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
     data: {
       invoiceId: invoice.id,
       status: result.success ? 'success' : 'error',
-      requestXml: nfseService.generateRpsXml(nfseData),
+      requestXml: nfseService.buildDps(nfseData).xml,
       responseXml: result.xmlRetorno || null,
       errorMessage: result.errorMessage || null,
     },
@@ -315,6 +315,8 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
         status: 'ISSUED',
         numeroNota: result.numeroNota,
         codigoVerificacao: result.codigoVerificacao,
+        chaveAcesso: result.chaveAcesso,
+        idDps: result.idDps,
         protocolo: result.protocolo,
         xmlRetorno: result.xmlRetorno,
         pdfUrl: result.pdfUrl,
@@ -443,8 +445,8 @@ export async function cancelInvoice(req: AuthRequest, res: Response) {
       return res.status(400).json({ success: false, error: 'Somente notas emitidas podem ser canceladas' });
     }
 
-    if (!invoice.numeroNota) {
-      return res.status(400).json({ success: false, error: 'Nota sem número - não pode ser cancelada na prefeitura' });
+    if (!invoice.chaveAcesso) {
+      return res.status(400).json({ success: false, error: 'Nota sem chave de acesso - não pode ser cancelada no Sistema Nacional NFS-e' });
     }
 
     // Buscar dados da empresa e configurações fiscais
@@ -458,19 +460,18 @@ export async function cancelInvoice(req: AuthRequest, res: Response) {
     // Código de cancelamento: 1=Erro na emissão, 2=Serviço não prestado, 3=Duplicidade
     const codigoCancelamento = req.body?.codigoCancelamento || '2';
 
-    // Chamar a API da PBH para cancelar
-    const nfseService = new NfseBHService({
+    // Chamar o Sistema Nacional NFS-e para cancelar
+    const nfseService = new NfseNacionalService({
       ambiente: fiscalSettings?.ambiente || 'homologacao',
-      urlWebservice: fiscalSettings?.urlWebservice || undefined,
-      usuario: fiscalSettings?.usuarioWebservice || undefined,
-      senha: fiscalSettings?.senhaWebservice || undefined,
       companyId: req.companyId,
+      razaoSocialPrestador: company.razaoSocial,
+      regimeTributario: company.regimeTributario,
+      cTribNac: company.cTribNac,
     });
 
     const result = await nfseService.cancelarNfse(
-      invoice.numeroNota,
+      invoice.chaveAcesso,
       company.cnpj,
-      company.inscricaoMunicipal,
       codigoCancelamento
     );
 

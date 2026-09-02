@@ -41,6 +41,7 @@ model Company {
   codigoMunicipio     String?
   regimeTributario    String?
   codigoServico       String?
+  cTribNac            String? // codigo de tributacao nacional (6 digitos) - NFS-e Nacional
   aliquotaIss         Float?
   cnae                String?
   certificadoDigital  String?   // encrypted
@@ -188,6 +189,8 @@ model Invoice {
   status              InvoiceStatus @default(PENDING)
   numeroNota          String?
   codigoVerificacao   String?
+  chaveAcesso         String?  @unique // chave de acesso (50 digitos) - NFS-e Nacional
+  idDps               String?  // identificador da DPS enviada (45 posicoes) - NFS-e Nacional
   numeroRps           String?
   serieRps            String?
   xmlEnvio            String?  @db.Text

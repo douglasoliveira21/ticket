@@ -140,8 +140,8 @@ export default function OrderDetailPage() {
                     <p className="font-medium">{invoice.numeroNota || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Verificação</p>
-                    <p className="font-medium">{invoice.codigoVerificacao || '-'}</p>
+                    <p className="text-gray-500">Chave de Acesso</p>
+                    <p className="font-medium break-all">{invoice.chaveAcesso || invoice.codigoVerificacao || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Valor</p>

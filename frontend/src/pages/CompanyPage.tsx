@@ -22,6 +22,7 @@ export default function CompanyPage() {
     codigoMunicipio: '',
     regimeTributario: '',
     codigoServico: '',
+    cTribNac: '',
     aliquotaIss: '',
     cnae: '',
   });
@@ -50,6 +51,7 @@ export default function CompanyPage() {
         codigoMunicipio: data.codigoMunicipio || '',
         regimeTributario: data.regimeTributario || '',
         codigoServico: data.codigoServico || '',
+        cTribNac: data.cTribNac || '',
         aliquotaIss: data.aliquotaIss?.toString() || '',
         cnae: data.cnae || '',
       });
@@ -171,6 +173,22 @@ export default function CompanyPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Código de Serviço</label>
               <input name="codigoServico" value={form.codigoServico} onChange={handleChange} className="input-field" placeholder="Ex: 12.07" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Código de Tributação Nacional (cTribNac)
+              </label>
+              <input
+                name="cTribNac"
+                value={form.cTribNac}
+                onChange={handleChange}
+                className="input-field"
+                placeholder={form.codigoServico ? `Ex: ${form.codigoServico.replace(/\D/g, '')}00` : 'Ex: 120700'}
+                maxLength={6}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Exigido pela NFS-e Nacional. Se deixado em branco, o sistema usa o Código de Serviço + "00" como padrão.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Alíquota ISS (%)</label>
