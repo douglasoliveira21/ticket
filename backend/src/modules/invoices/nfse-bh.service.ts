@@ -285,6 +285,7 @@ export class NfseBHService {
   }
 
   private callWebservice(soapXml: string, pfxBuffer: Buffer, pfxPassword: string): Promise<string> {
+    console.log(`[NFSe-BH] Chamando webservice. ambiente=${this.ambiente} urlWebservice=${this.urlWebservice}`);
     this.logOutboundIp();
     return new Promise((resolve, reject) => {
       const url = new URL(this.urlWebservice);
