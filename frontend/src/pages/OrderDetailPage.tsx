@@ -49,7 +49,7 @@ export default function OrderDetailPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800">Detalhe da Venda</h2>
         <div className="flex gap-2">
-          {!latestInvoice && order.orderStatus === 'approved' && !order.ignored && (
+          {(!latestInvoice || latestInvoice.status === 'CANCELLED') && order.orderStatus === 'approved' && !order.ignored && (
             <button onClick={() => issueMutation.mutate()} disabled={issueMutation.isPending} className="btn-primary flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Emitir NFS-e

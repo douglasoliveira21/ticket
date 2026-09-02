@@ -58,7 +58,7 @@ export default function OrdersPage() {
   }
 
   function selectAllPending() {
-    const pending = orders.filter((o: any) => !o.invoices?.length && o.orderStatus === 'approved' && !o.ignored);
+    const pending = orders.filter((o: any) => (!o.invoices?.length || o.invoices[0].status === 'CANCELLED') && o.orderStatus === 'approved' && !o.ignored);
     setSelectedOrders(pending.map((o: any) => o.id));
   }
 
@@ -137,7 +137,7 @@ export default function OrdersPage() {
               <tbody>
                 {orders.map((order: any) => {
                   const invoice = order.invoices?.[0];
-                  const canIssue = !invoice && order.orderStatus === 'approved' && !order.ignored;
+                  const canIssue = (!invoice || invoice.status === 'CANCELLED') && order.orderStatus === 'approved' && !order.ignored;
 
                   return (
                     <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50">
@@ -163,8 +163,8 @@ export default function OrdersPage() {
                       </td>
                       <td className="py-3 px-2">
                         {invoice ? (
-                          <span className={`badge-${invoice.status === 'ISSUED' ? 'success' : invoice.status === 'ERROR' ? 'error' : 'warning'}`}>
-                            {invoice.status === 'ISSUED' ? `Emitida #${invoice.numeroNota}` : invoice.status === 'ERROR' ? 'Erro' : 'Processando'}
+                          <span className={`badge-${invoice.status === 'ISSUED' ? 'success' : invoice.status === 'ERROR' ? 'error' : invoice.status === 'CANCELLED' ? 'info' : 'warning'}`}>
+                            {invoice.status === 'ISSUED' ? `Emitida #${invoice.numeroNota}` : invoice.status === 'ERROR' ? 'Erro' : invoice.status === 'CANCELLED' ? 'Cancelada' : 'Processando'}
                           </span>
                         ) : order.ignored ? (
                           <span className="badge-info">Ignorada</span>
