@@ -91,7 +91,8 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
   const regTrib = mapRegimeTributario(data.regimeTributario);
   const prestadorDigits = data.cnpjPrestador.replace(/\D/g, '');
 
-  const xml = `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
   <infDPS Id="${idDps}">
     <tpAmb>1</tpAmb>
     <dhEmi>${toUtcDateTime(data.dataEmissao)}</dhEmi>
