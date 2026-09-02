@@ -117,6 +117,53 @@ export async function sendTestEmail(companyId: string, toEmail: string): Promise
   }
 }
 
+/**
+ * Envia o e-mail de redefinição de senha com o link contendo o token.
+ * Usa as configurações de SMTP da empresa do usuário (com fallback para
+ * as variáveis de ambiente SMTP_*, via buildTransporter), já que o
+ * usuário ainda não está autenticado neste fluxo.
+ */
+export async function sendPasswordResetEmail(companyId: string | null, toEmail: string, resetLink: string): Promise<void> {
+  const subject = 'Redefinição de senha - Gestão Fiscal';
+
+  async function logAttempt(status: 'sent' | 'failed', errorMessage?: string, errorCode?: string) {
+    if (!companyId) return; // EmailLog.companyId é obrigatório - sem empresa, não há o que registrar
+    await prisma.emailLog.create({ data: { companyId, toEmail, subject, status, errorMessage, errorCode } });
+  }
+
+  let transporterConfig: TransporterConfig;
+  try {
+    transporterConfig = await buildTransporter(companyId || '');
+  } catch (error: any) {
+    const { code, label } = classifyEmailError(error);
+    await logAttempt('failed', label, code);
+    throw new Error(label);
+  }
+
+  const { transporter, smtpFrom, smtpFromName } = transporterConfig;
+
+  try {
+    await transporter.sendMail({
+      from: `"${smtpFromName}" <${smtpFrom}>`,
+      to: toEmail,
+      subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #8B1A1A;">Redefinição de senha</h2>
+          <p>Recebemos uma solicitação para redefinir sua senha de acesso ao Gestão Fiscal.</p>
+          <p><a href="${resetLink}" style="background: #8B1A1A; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Redefinir senha</a></p>
+          <p style="color: #666; font-size: 13px;">Este link expira em 1 hora. Se você não solicitou essa alteração, ignore este e-mail.</p>
+        </div>
+      `,
+    });
+    await logAttempt('sent');
+  } catch (error: any) {
+    const { code, label } = classifyEmailError(error);
+    await logAttempt('failed', label, code);
+    throw new Error(label);
+  }
+}
+
 export async function sendInvoiceEmail(companyId: string, order: any, invoice: any, customMessage?: string) {
   const { transporter, smtpFrom, smtpFromName } = await buildTransporter(companyId);
   const emailSettings = await prisma.emailSettings.findUnique({ where: { companyId } });

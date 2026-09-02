@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { z } from 'zod';
 import prisma from '../../common/utils/prisma';
 import { AuthRequest } from '../../common/guards/auth.guard';
+import { sendPasswordResetEmail } from '../email/email.service';
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -165,6 +167,88 @@ export async function me(req: AuthRequest, res: Response) {
     res.json({ success: true, data: user });
   } catch (error) {
     return res.status(500).json({ success: false, error: 'Erro ao buscar usuário' });
+  }
+}
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export async function forgotPassword(req: Request, res: Response) {
+  try {
+    const { email } = forgotPasswordSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Resposta genérica sempre igual, exista ou não o e-mail - evita
+    // que alguém descubra quais e-mails têm conta testando este endpoint.
+    const genericResponse = { success: true, message: 'Se o e-mail existir, enviaremos um link de redefinição de senha.' };
+
+    if (!user || !user.isActive) {
+      return res.json(genericResponse);
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetPasswordTokenHash: tokenHash, resetPasswordExpires: expires },
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/redefinir-senha?token=${rawToken}`;
+
+    try {
+      await sendPasswordResetEmail(user.companyId, user.email, resetLink);
+    } catch (emailError) {
+      console.error('Erro ao enviar e-mail de redefinição de senha:', emailError);
+      // Não expõe o erro de envio ao solicitante - mesma resposta genérica.
+    }
+
+    res.json(genericResponse);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'E-mail inválido' });
+    }
+    return res.status(500).json({ success: false, error: 'Erro ao processar solicitação' });
+  }
+}
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(6),
+});
+
+export async function resetPassword(req: Request, res: Response) {
+  try {
+    const { token, newPassword } = resetPasswordSchema.parse(req.body);
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await prisma.user.findFirst({
+      where: { resetPasswordTokenHash: tokenHash, resetPasswordExpires: { gt: new Date() } },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, error: 'Link de redefinição inválido ou expirado' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword, resetPasswordTokenHash: null, resetPasswordExpires: null },
+    });
+
+    await prisma.auditLog.create({
+      data: { userId: user.id, companyId: user.companyId, action: 'RESET_PASSWORD', entity: 'user', entityId: user.id, ip: req.ip },
+    });
+
+    res.json({ success: true, message: 'Senha redefinida com sucesso' });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Dados inválidos' });
+    }
+    return res.status(500).json({ success: false, error: 'Erro ao redefinir senha' });
   }
 }
 
