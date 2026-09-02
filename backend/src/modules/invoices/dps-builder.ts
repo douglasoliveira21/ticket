@@ -49,8 +49,16 @@ export function buildIdDps(cLocEmi: string, cnpjPrestador: string, serieDps: str
   );
 }
 
-function toUtcDateTime(date: Date): string {
-  return date.toISOString().replace(/\.\d{3}Z$/, '-03:00');
+/**
+ * Formata a data/hora no fuso de Brasília (UTC-3, sem horário de verão desde
+ * 2019), no formato exigido por TSDateTimeUTC (AAAA-MM-DDThh:mm:ss-03:00).
+ * `date.toISOString()` sozinho retorna o horário em UTC (sufixo Z) - só
+ * trocar o sufixo por "-03:00" sem subtrair as 3 horas deixaria o horário
+ * declarado 3h à frente do real.
+ */
+export function toBrasiliaDateTime(date: Date): string {
+  const brasilia = new Date(date.getTime() - 3 * 60 * 60 * 1000);
+  return brasilia.toISOString().replace(/\.\d{3}Z$/, '-03:00');
 }
 
 function toDataCompetencia(date: Date): string {
@@ -95,7 +103,7 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
 <DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
   <infDPS Id="${idDps}">
     <tpAmb>1</tpAmb>
-    <dhEmi>${toUtcDateTime(data.dataEmissao)}</dhEmi>
+    <dhEmi>${toBrasiliaDateTime(data.dataEmissao)}</dhEmi>
     <verAplic>1.0.0</verAplic>
     <serie>${data.serieDps}</serie>
     <nDPS>${data.numeroDps}</nDPS>

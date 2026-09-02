@@ -14,7 +14,7 @@ import zlib from 'zlib';
 import { decrypt } from '../../common/utils/encryption';
 import { loadCompanyCertificate } from '../company/certificate.controller';
 import { readPfx } from '../../common/utils/pfx';
-import { buildDpsXml, signDps, DpsData } from './dps-builder';
+import { buildDpsXml, signDps, DpsData, toBrasiliaDateTime } from './dps-builder';
 
 export interface NfseData {
   cnpjPrestador: string;
@@ -189,7 +189,7 @@ export class NfseNacionalService {
   <infPedReg Id="PR${chaveAcesso}">
     <tpAmb>1</tpAmb>
     <verAplic>1.0.0</verAplic>
-    <dhEvento>${new Date().toISOString().replace(/\.\d{3}Z$/, '-03:00')}</dhEvento>
+    <dhEvento>${toBrasiliaDateTime(new Date())}</dhEvento>
     <CNPJAutor>${cnpjPrestador.replace(/\D/g, '')}</CNPJAutor>
     <chNFSe>${chaveAcesso}</chNFSe>
     <nPedRegEvento>1</nPedRegEvento>
