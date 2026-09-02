@@ -112,7 +112,6 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
     <cLocEmi>${pad(data.cLocEmi, 7)}</cLocEmi>
     <prest>
       <CNPJ>${prestadorDigits}</CNPJ>
-      <IM>${escapeXml(data.inscricaoMunicipalPrestador)}</IM>
       <xNome>${escapeXml(data.razaoSocialPrestador)}</xNome>
       <regTrib>
         <opSimpNac>${regTrib.opSimpNac}</opSimpNac>
