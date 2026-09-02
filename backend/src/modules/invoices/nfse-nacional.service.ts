@@ -168,6 +168,29 @@ export class NfseNacionalService {
     }
   }
 
+  /**
+   * Consulta se um código de tributação nacional (cTribNac) é administrado
+   * pelo município informado (ex: alíquota parametrizada, retenções, etc).
+   * Usado para diagnosticar o erro E0312 ("código não administrado pelo
+   * município de incidência").
+   */
+  async consultarParametroMunicipal(codigoMunicipio: string, cTribNac: string): Promise<{ success: boolean; data?: any; errorMessage?: string }> {
+    if (!this.companyId) {
+      return { success: false, errorMessage: 'ID da empresa não configurado.' };
+    }
+    const cert = await loadCompanyCertificate(this.companyId);
+    if (!cert) {
+      return { success: false, errorMessage: 'Certificado digital não configurado.' };
+    }
+    try {
+      const { cert: certPem, key: keyPem } = readPfx(cert.buffer, cert.password);
+      const response = await this.callSefin('GET', `/parametros_municipais/${codigoMunicipio}/${cTribNac}`, null, certPem, keyPem);
+      return { success: true, data: JSON.parse(response) };
+    } catch (error: any) {
+      return { success: false, errorMessage: error.message || 'Erro ao consultar parâmetros municipais' };
+    }
+  }
+
   async cancelarNfse(chaveAcesso: string, cnpjPrestador: string, codigoCancelamento: string = '2'): Promise<NfseResult> {
     if (this.ambiente === 'homologacao') {
       return { success: true, xmlRetorno: `<CancelarNfseResponse><ChaveAcesso>${chaveAcesso}</ChaveAcesso><Status>Cancelada</Status></CancelarNfseResponse>` };

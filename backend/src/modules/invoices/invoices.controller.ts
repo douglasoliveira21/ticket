@@ -370,6 +370,34 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
   }
 }
 
+export async function consultarParametroMunicipal(req: AuthRequest, res: Response) {
+  try {
+    const { cTribNac } = req.params;
+    const company = await prisma.company.findUnique({ where: { id: req.companyId } });
+    const fiscalSettings = await prisma.fiscalSettings.findUnique({ where: { companyId: req.companyId } });
+
+    if (!company?.codigoMunicipio) {
+      return res.status(400).json({ success: false, error: 'Código do município não configurado na empresa' });
+    }
+
+    const nfseService = new NfseNacionalService({
+      ambiente: 'producao',
+      companyId: req.companyId,
+      razaoSocialPrestador: company.razaoSocial,
+      regimeTributario: company.regimeTributario,
+      cTribNac: company.cTribNac,
+    });
+
+    const result = await nfseService.consultarParametroMunicipal(company.codigoMunicipio, cTribNac);
+    if (!result.success) {
+      return res.status(400).json({ success: false, error: result.errorMessage });
+    }
+    res.json({ success: true, data: result.data });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message || 'Erro ao consultar parâmetros municipais' });
+  }
+}
+
 export async function issueInvoice(req: AuthRequest, res: Response) {
   try {
     const result = await processInvoiceEmission(req.params.orderId, req.companyId!, req.userId);
