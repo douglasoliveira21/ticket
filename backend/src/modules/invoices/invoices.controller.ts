@@ -283,6 +283,21 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
     numeroRps: currentRps,
     serieRps: fiscalSettings?.serieRps || '1',
     dataEmissao: new Date(),
+    // Obrigatorio pelo SEFIN Nacional para servicos do item 12 (diversoes/
+    // eventos). Usa o endereco cadastrado da empresa como local do evento,
+    // já que ainda não temos um endereço de local por evento na base.
+    evento: {
+      nome: order.event?.name || descricaoServico,
+      dataInicio: order.event?.startDate || new Date(),
+      dataFim: order.event?.endDate || order.event?.startDate || new Date(),
+      endereco: {
+        cep: company.cep || '',
+        logradouro: company.logradouro || '',
+        numero: company.numero || '',
+        complemento: company.complemento || undefined,
+        bairro: company.bairro || '',
+      },
+    },
   };
 
   // Call NFS-e service (Sistema Nacional NFS-e - obrigatorio para BH desde 01/01/2026)
@@ -296,12 +311,20 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
 
   const result = await nfseService.emitirNfse(nfseData);
 
+  let requestXml: string | null = null;
+  try {
+    requestXml = nfseService.buildDps(nfseData).xml;
+  } catch {
+    // Falha ao montar a DPS (ex: dados de evento ausentes) já está refletida
+    // em result.errorMessage - não deve impedir o registro da tentativa.
+  }
+
   // Record attempt
   await prisma.invoiceAttempt.create({
     data: {
       invoiceId: invoice.id,
       status: result.success ? 'success' : 'error',
-      requestXml: nfseService.buildDps(nfseData).xml,
+      requestXml,
       responseXml: result.xmlRetorno || null,
       errorMessage: result.errorMessage || null,
     },

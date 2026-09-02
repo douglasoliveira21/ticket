@@ -30,6 +30,19 @@ export interface NfseData {
   numeroRps: number;
   serieRps: string;
   dataEmissao: Date;
+  // Obrigatorio quando o cTribNac pertence ao item 12 (diversoes/eventos) - E0390
+  evento?: {
+    nome: string;
+    dataInicio: Date;
+    dataFim: Date;
+    endereco: {
+      cep: string;
+      logradouro: string;
+      numero: string;
+      complemento?: string;
+      bairro: string;
+    };
+  };
 }
 
 export interface NfseResult {
@@ -89,6 +102,9 @@ export class NfseNacionalService {
    */
   buildDps(data: NfseData): { xml: string; idDps: string; dpsData: DpsData } {
     const cTribNac = this.cTribNac || buildCTribNacFallback(data.codigoServico);
+    if (cTribNac.startsWith('12') && !data.evento) {
+      throw new Error('Dados do evento (nome, datas e endereço) são obrigatórios para este código de tributação nacional (item 12 - diversões/eventos).');
+    }
     const dpsData: DpsData = {
       cLocEmi: data.codigoMunicipio,
       cnpjPrestador: data.cnpjPrestador,
@@ -105,6 +121,9 @@ export class NfseNacionalService {
       numeroDps: data.numeroRps,
       dataEmissao: data.dataEmissao,
       dataCompetencia: data.dataEmissao,
+      // Grupo Atividade/Evento e obrigatorio para qualquer cTribNac do item 12
+      // (diversoes, lazer, entretenimento e congeneres) - erro E0390.
+      evento: cTribNac.startsWith('12') ? data.evento : undefined,
     };
     const { xml, idDps } = buildDpsXml(dpsData);
     return { xml, idDps, dpsData };

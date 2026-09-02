@@ -21,6 +21,19 @@ export interface DpsData {
   numeroDps: string | number; // ate 15 digitos, sem zero a esquerda
   dataEmissao: Date; // data/hora de emissao da DPS
   dataCompetencia: Date; // data de inicio da prestacao do servico
+  // Obrigatorio (TCAtvEvento) quando cTribNac pertence ao item 12 (diversoes/eventos)
+  evento?: {
+    nome: string;
+    dataInicio: Date;
+    dataFim: Date;
+    endereco: {
+      cep: string;
+      logradouro: string;
+      numero: string;
+      complemento?: string;
+      bairro: string;
+    };
+  };
 }
 
 function pad(value: string, length: number): string {
@@ -136,6 +149,18 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
         <cTribNac>${data.cTribNac}</cTribNac>
         <xDescServ>${escapeXml(data.descricaoServico)}</xDescServ>
       </cServ>
+      ${data.evento ? `<atvEvento>
+        <xNome>${escapeXml(data.evento.nome)}</xNome>
+        <dtIni>${toDataCompetencia(data.evento.dataInicio)}</dtIni>
+        <dtFim>${toDataCompetencia(data.evento.dataFim)}</dtFim>
+        <end>
+          <CEP>${data.evento.endereco.cep.replace(/\D/g, '')}</CEP>
+          <xLgr>${escapeXml(data.evento.endereco.logradouro)}</xLgr>
+          <nro>${escapeXml(data.evento.endereco.numero)}</nro>
+          ${data.evento.endereco.complemento ? `<xCpl>${escapeXml(data.evento.endereco.complemento)}</xCpl>` : ''}
+          <xBairro>${escapeXml(data.evento.endereco.bairro)}</xBairro>
+        </end>
+      </atvEvento>` : ''}
     </serv>
     <valores>
       <vServPrest>
