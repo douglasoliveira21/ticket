@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../../common/utils/prisma';
 import { AuthRequest } from '../../common/guards/auth.guard';
-import { encrypt } from '../../common/utils/encryption';
+import { encrypt, decrypt } from '../../common/utils/encryption';
 import { resendInvoiceEmail, sendTestEmail } from './email.service';
 
 const emailSettingsSchema = z.object({
@@ -27,9 +27,17 @@ export async function getEmailSettings(req: AuthRequest, res: Response) {
       return res.json({ success: true, data: null });
     }
 
-    // Remove sensitive fields
-    const { smtpUser, smtpPass, ...safeSettings } = settings;
-    res.json({ success: true, data: { ...safeSettings, hasCredentials: !!smtpUser } });
+    // Remove sensitive fields (smtpHost fica no retorno, mas precisa ser
+    // descriptografado - fica salvo cifrado no banco)
+    const { smtpUser, smtpPass, smtpHost, ...safeSettings } = settings;
+    res.json({
+      success: true,
+      data: {
+        ...safeSettings,
+        smtpHost: smtpHost ? decrypt(smtpHost) : smtpHost,
+        hasCredentials: !!smtpUser,
+      },
+    });
   } catch (error) {
     return res.status(500).json({ success: false, error: 'Erro ao buscar configurações de e-mail' });
   }
