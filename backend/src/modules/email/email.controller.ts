@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '../../common/utils/prisma';
 import { AuthRequest } from '../../common/guards/auth.guard';
 import { encrypt } from '../../common/utils/encryption';
-import { resendInvoiceEmail } from './email.service';
+import { resendInvoiceEmail, sendTestEmail } from './email.service';
 
 const emailSettingsSchema = z.object({
   smtpHost: z.string().optional(),
@@ -66,5 +66,51 @@ export async function resendEmail(req: AuthRequest, res: Response) {
     res.json({ success: true, message: 'E-mail reenviado com sucesso' });
   } catch (error: any) {
     return res.status(400).json({ success: false, error: error.message });
+  }
+}
+
+const testEmailSchema = z.object({
+  toEmail: z.string().email('E-mail de destino inválido'),
+});
+
+export async function sendTestEmailHandler(req: AuthRequest, res: Response) {
+  try {
+    const { toEmail } = testEmailSchema.parse(req.body);
+    await sendTestEmail(req.companyId!, toEmail);
+    res.json({ success: true, message: 'E-mail de teste enviado com sucesso' });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: error.errors[0]?.message || 'Dados inválidos' });
+    }
+    return res.status(400).json({ success: false, error: error.message });
+  }
+}
+
+export async function listEmailLogs(req: AuthRequest, res: Response) {
+  try {
+    const { page = '1', limit = '20', status } = req.query;
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const where: any = { companyId: req.companyId! };
+    if (status) where.status = status;
+
+    const [logs, total] = await Promise.all([
+      prisma.emailLog.findMany({
+        where,
+        include: { invoice: { select: { numeroNota: true } } },
+        orderBy: { sentAt: 'desc' },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+      }),
+      prisma.emailLog.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: logs,
+      pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Erro ao buscar histórico de e-mails' });
   }
 }

@@ -240,6 +240,7 @@ model EmailLog {
   subject     String
   status      String   @default("sent") // sent, failed, pending
   errorMessage String?
+  errorCode   String?  // EAUTH, ECONNECTION, ETIMEDOUT, EENVELOPE, EMESSAGE, ECONFIG, DESCONHECIDO
   sentAt      DateTime @default(now())
 
   @@map("email_logs")

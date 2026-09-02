@@ -2,7 +2,42 @@ import nodemailer from 'nodemailer';
 import prisma from '../../common/utils/prisma';
 import { decrypt } from '../../common/utils/encryption';
 
-export async function sendInvoiceEmail(companyId: string, order: any, invoice: any, customMessage?: string) {
+/**
+ * Mapeia códigos de erro do nodemailer/SMTP para um tipo de falha
+ * legível, usado no histórico de envios (EmailLog.errorCode).
+ */
+export function classifyEmailError(error: any): { code: string; label: string } {
+  const code = error?.code as string | undefined;
+  const responseCode = error?.responseCode as number | undefined;
+
+  if (code === 'EAUTH' || responseCode === 535) {
+    return { code: 'EAUTH', label: 'Falha de autenticação (usuário/senha incorretos)' };
+  }
+  if (code === 'ECONNECTION' || code === 'ESOCKET') {
+    return { code: 'ECONNECTION', label: 'Falha de conexão com o servidor SMTP' };
+  }
+  if (code === 'ETIMEDOUT') {
+    return { code: 'ETIMEDOUT', label: 'Tempo de conexão esgotado (timeout)' };
+  }
+  if (code === 'EENVELOPE' || responseCode === 550 || responseCode === 551 || responseCode === 553) {
+    return { code: 'EENVELOPE', label: 'E-mail de destino inválido ou rejeitado' };
+  }
+  if (code === 'EMESSAGE' || responseCode === 552) {
+    return { code: 'EMESSAGE', label: 'Mensagem rejeitada (tamanho ou conteúdo)' };
+  }
+  if (code === 'ECONFIG') {
+    return { code: 'ECONFIG', label: 'Configurações de e-mail não definidas' };
+  }
+  return { code: code || 'DESCONHECIDO', label: error?.message || 'Erro desconhecido ao enviar e-mail' };
+}
+
+interface TransporterConfig {
+  transporter: nodemailer.Transporter;
+  smtpFrom: string;
+  smtpFromName: string;
+}
+
+async function buildTransporter(companyId: string): Promise<TransporterConfig> {
   const emailSettings = await prisma.emailSettings.findUnique({
     where: { companyId },
   });
@@ -15,8 +50,10 @@ export async function sendInvoiceEmail(companyId: string, order: any, invoice: a
   const smtpFrom = emailSettings?.smtpFrom || process.env.SMTP_FROM;
   const smtpFromName = emailSettings?.smtpFromName || process.env.SMTP_FROM_NAME || 'Gestão Fiscal';
 
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    throw new Error('Configurações de e-mail não definidas');
+  if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
+    const err: any = new Error('Configurações de e-mail não definidas');
+    err.code = 'ECONFIG';
+    throw err;
   }
 
   const transporter = nodemailer.createTransport({
@@ -31,6 +68,58 @@ export async function sendInvoiceEmail(companyId: string, order: any, invoice: a
       rejectUnauthorized: false,
     },
   });
+
+  return { transporter, smtpFrom, smtpFromName };
+}
+
+/**
+ * Envia um e-mail de teste simples para validar as configurações de SMTP,
+ * registrando o resultado (sucesso ou falha, com o tipo de erro) no
+ * histórico de envios.
+ */
+export async function sendTestEmail(companyId: string, toEmail: string): Promise<void> {
+  let transporterConfig: TransporterConfig;
+  try {
+    transporterConfig = await buildTransporter(companyId);
+  } catch (error: any) {
+    const { code, label } = classifyEmailError(error);
+    await prisma.emailLog.create({
+      data: { companyId, toEmail, subject: 'E-mail de teste', status: 'failed', errorMessage: label, errorCode: code },
+    });
+    throw new Error(label);
+  }
+
+  const { transporter, smtpFrom, smtpFromName } = transporterConfig;
+  const subject = 'E-mail de teste - Gestão Fiscal';
+
+  try {
+    await transporter.sendMail({
+      from: `"${smtpFromName}" <${smtpFrom}>`,
+      to: toEmail,
+      subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #8B1A1A;">E-mail de teste</h2>
+          <p>Se você recebeu esta mensagem, as configurações de SMTP estão funcionando corretamente.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">Enviado em ${new Date().toLocaleString('pt-BR')}</p>
+        </div>
+      `,
+    });
+    await prisma.emailLog.create({
+      data: { companyId, toEmail, subject, status: 'sent' },
+    });
+  } catch (error: any) {
+    const { code, label } = classifyEmailError(error);
+    await prisma.emailLog.create({
+      data: { companyId, toEmail, subject, status: 'failed', errorMessage: label, errorCode: code },
+    });
+    throw new Error(label);
+  }
+}
+
+export async function sendInvoiceEmail(companyId: string, order: any, invoice: any, customMessage?: string) {
+  const { transporter, smtpFrom, smtpFromName } = await buildTransporter(companyId);
+  const emailSettings = await prisma.emailSettings.findUnique({ where: { companyId } });
 
   const eventName = order.event?.name || 'Evento';
   const subject = emailSettings?.templateAssunto
@@ -151,7 +240,24 @@ export async function sendInvoiceEmail(companyId: string, order: any, invoice: a
     attachments,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error: any) {
+    const { code, label } = classifyEmailError(error);
+    await prisma.emailLog.create({
+      data: {
+        invoiceId: invoice.id,
+        companyId,
+        toEmail: order.buyerEmail,
+        toName: order.buyerName,
+        subject,
+        status: 'failed',
+        errorMessage: label,
+        errorCode: code,
+      },
+    });
+    throw new Error(label);
+  }
 
   // Log email
   await prisma.emailLog.create({
