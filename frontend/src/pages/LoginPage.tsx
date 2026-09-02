@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText } from 'lucide-react';
 import { withToastFeedback } from '../lib/feedback';
@@ -69,13 +69,6 @@ export default function LoginPage() {
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
-
-          <p className="text-center text-sm text-gray-600">
-            Não tem conta?{' '}
-            <Link to="/register" className="text-primary-700 hover:underline font-medium">
-              Cadastre-se
-            </Link>
-          </p>
         </form>
       </div>
     </div>
