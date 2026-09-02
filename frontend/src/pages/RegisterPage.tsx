@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { withToastFeedback } from '../lib/feedback';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -24,11 +24,14 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await register(form);
+      await withToastFeedback(() => register(form), {
+        loading: 'Criando conta...',
+        success: 'Conta criada com sucesso!',
+        error: 'Erro ao cadastrar',
+      });
       navigate('/dashboard');
-      toast.success('Conta criada com sucesso!');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erro ao cadastrar');
+    } catch {
+      // erro já exibido pelo toast
     } finally {
       setLoading(false);
     }

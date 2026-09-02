@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
-import toast from 'react-hot-toast';
 import { FileText, Eye } from 'lucide-react';
+import { useFeedbackMutation } from '../lib/feedback';
+import Spinner from '../components/ui/Spinner';
 
 export default function OrdersPage() {
   const queryClient = useQueryClient();
@@ -28,25 +29,29 @@ export default function OrdersPage() {
     }).then(r => r.data),
   });
 
-  const issueMutation = useMutation({
-    mutationFn: (orderId: string) => api.post(`/invoices/issue/${orderId}`),
-    onSuccess: () => {
-      toast.success('Nota emitida com sucesso');
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    },
-    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro ao emitir nota'),
-  });
+  const issueMutation = useFeedbackMutation(
+    (orderId: string) => api.post(`/invoices/issue/${orderId}`),
+    { loading: 'Emitindo NFS-e...', success: 'Nota emitida com sucesso', error: 'Erro ao emitir nota' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }) }
+  );
 
-  const batchMutation = useMutation({
-    mutationFn: (orderIds: string[]) => api.post('/invoices/issue-batch', { orderIds }),
-    onSuccess: (response) => {
-      const { success, errors } = response.data.data;
-      toast.success(`${success} notas emitidas, ${errors} erros`);
-      setSelectedOrders([]);
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+  const batchMutation = useFeedbackMutation(
+    (orderIds: string[]) => api.post('/invoices/issue-batch', { orderIds }),
+    {
+      loading: `Emitindo ${selectedOrders.length} nota(s)...`,
+      success: (response) => {
+        const { success, errors } = response.data.data;
+        return `${success} notas emitidas, ${errors} erros`;
+      },
+      error: 'Erro ao processar lote',
     },
-    onError: () => toast.error('Erro ao processar lote'),
-  });
+    {
+      onSuccess: () => {
+        setSelectedOrders([]);
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+      },
+    }
+  );
 
   const orders = data?.data || [];
   const pagination = data?.pagination;
@@ -111,7 +116,7 @@ export default function OrdersPage() {
       {/* Table */}
       <div className="card overflow-x-auto">
         {isLoading ? (
-          <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div></div>
+          <Spinner />
         ) : orders.length > 0 ? (
           <>
             <table className="w-full text-sm">
@@ -177,7 +182,7 @@ export default function OrdersPage() {
                           {canIssue && (
                             <button
                               onClick={() => issueMutation.mutate(order.id)}
-                              disabled={issueMutation.isPending}
+                              disabled={issueMutation.isPending && issueMutation.variables === order.id}
                               className="p-1.5 text-primary-700 hover:bg-primary-50 rounded"
                               title="Emitir NFS-e"
                             >

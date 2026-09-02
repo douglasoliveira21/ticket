@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Shield, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { useFeedbackMutation } from '../lib/feedback';
 
 export default function FiscalSettingsPage() {
   const queryClient = useQueryClient();
@@ -39,42 +40,32 @@ export default function FiscalSettingsPage() {
     }
   }, [data]);
 
-  const mutation = useMutation({
-    mutationFn: (data: any) => api.put('/companies/fiscal-settings', data),
-    onSuccess: () => {
-      toast.success('Configurações fiscais atualizadas');
-      queryClient.invalidateQueries({ queryKey: ['fiscal-settings'] });
-    },
-    onError: () => toast.error('Erro ao salvar'),
-  });
+  const mutation = useFeedbackMutation(
+    (data: any) => api.put('/companies/fiscal-settings', data),
+    { loading: 'Salvando configurações...', success: 'Configurações fiscais atualizadas', error: 'Erro ao salvar configurações' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fiscal-settings'] }) }
+  );
 
-  const uploadMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      return api.post('/companies/certificate', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-    },
-    onSuccess: () => {
-      toast.success('Certificado A1 enviado com sucesso');
-      queryClient.invalidateQueries({ queryKey: ['certificate-info'] });
-      setSelectedFile(null);
-      setCertPassword('');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    },
-    onError: (error: any) => {
-      const msg = error.response?.data?.error || 'Erro ao enviar certificado';
-      toast.error(msg);
-    },
-  });
+  const uploadMutation = useFeedbackMutation(
+    async (formData: FormData) => api.post('/companies/certificate', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+    { loading: 'Enviando certificado...', success: 'Certificado A1 enviado com sucesso', error: 'Erro ao enviar certificado' },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['certificate-info'] });
+        setSelectedFile(null);
+        setCertPassword('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      },
+    }
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: () => api.delete('/companies/certificate'),
-    onSuccess: () => {
-      toast.success('Certificado removido');
-      queryClient.invalidateQueries({ queryKey: ['certificate-info'] });
-    },
-    onError: () => toast.error('Erro ao remover certificado'),
-  });
+  const deleteMutation = useFeedbackMutation(
+    () => api.delete('/companies/certificate'),
+    { loading: 'Removendo certificado...', success: 'Certificado removido', error: 'Erro ao remover certificado' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['certificate-info'] }) }
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import toast from 'react-hot-toast';
 import { Plus, RefreshCw, Trash2, CheckCircle, XCircle, Link2 } from 'lucide-react';
+import { useFeedbackMutation } from '../lib/feedback';
+import Spinner from '../components/ui/Spinner';
 
 export default function SymplaPage() {
   const queryClient = useQueryClient();
@@ -14,57 +15,56 @@ export default function SymplaPage() {
     queryFn: () => api.get('/sympla/integrations').then(r => r.data.data),
   });
 
-  const createMutation = useMutation({
-    mutationFn: (data: any) => api.post('/sympla/integrations', data),
-    onSuccess: () => {
-      toast.success('Integração criada');
-      queryClient.invalidateQueries({ queryKey: ['sympla-integrations'] });
-      setShowForm(false);
-      setForm({ name: '', token: '' });
-    },
-    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro ao criar'),
-  });
+  const createMutation = useFeedbackMutation(
+    (data: any) => api.post('/sympla/integrations', data),
+    { loading: 'Criando integração...', success: 'Integração criada', error: 'Erro ao criar integração' },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['sympla-integrations'] });
+        setShowForm(false);
+        setForm({ name: '', token: '' });
+      },
+    }
+  );
 
-  const testMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/sympla/integrations/${id}/test`),
-    onSuccess: (response) => {
-      if (response.data.data.connected) {
-        toast.success('Conexão bem-sucedida!');
-      } else {
-        toast.error('Falha na conexão. Verifique o token.');
+  const testMutation = useFeedbackMutation(
+    async (id: string) => {
+      const response = await api.post(`/sympla/integrations/${id}/test`);
+      if (!response.data.data.connected) {
+        throw new Error('Falha na conexão. Verifique o token.');
       }
+      return response;
     },
-    onError: () => toast.error('Erro ao testar conexão'),
-  });
+    { loading: 'Testando conexão...', success: 'Conexão bem-sucedida!', error: 'Falha na conexão. Verifique o token.' }
+  );
 
-  const importEventsMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/sympla/integrations/${id}/import-events`),
-    onSuccess: (response) => {
-      toast.success(`${response.data.data.imported} eventos importados`);
-      queryClient.invalidateQueries({ queryKey: ['sympla-integrations'] });
+  const importEventsMutation = useFeedbackMutation(
+    (id: string) => api.post(`/sympla/integrations/${id}/import-events`),
+    {
+      loading: 'Importando eventos...',
+      success: (response) => `${response.data.data.imported} eventos importados`,
+      error: 'Erro ao importar eventos',
     },
-    onError: () => toast.error('Erro ao importar eventos'),
-  });
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sympla-integrations'] }) }
+  );
 
-  const syncOrdersMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/sympla/integrations/${id}/sync-orders`),
-    onSuccess: (response) => {
-      toast.success(`${response.data.data.imported} vendas sincronizadas`);
-    },
-    onError: () => toast.error('Erro ao sincronizar vendas'),
-  });
+  const syncOrdersMutation = useFeedbackMutation(
+    (id: string) => api.post(`/sympla/integrations/${id}/sync-orders`),
+    {
+      loading: 'Sincronizando vendas, isso pode levar alguns instantes...',
+      success: (response) => `${response.data.data.imported} vendas sincronizadas`,
+      error: 'Erro ao sincronizar vendas',
+    }
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/sympla/integrations/${id}`),
-    onSuccess: () => {
-      toast.success('Integração removida');
-      queryClient.invalidateQueries({ queryKey: ['sympla-integrations'] });
-    },
-    onError: () => toast.error('Erro ao remover'),
-  });
+  const deleteMutation = useFeedbackMutation(
+    (id: string) => api.delete(`/sympla/integrations/${id}`),
+    { loading: 'Removendo integração...', success: 'Integração removida', error: 'Erro ao remover integração' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sympla-integrations'] }) }
+  );
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div></div>;
+    return <Spinner wrapperClassName="py-12" />;
   }
 
   return (
@@ -154,29 +154,30 @@ export default function SymplaPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => testMutation.mutate(integration.id)}
-                    disabled={testMutation.isPending}
+                    disabled={testMutation.isPending && testMutation.variables === integration.id}
                     className="btn-secondary text-sm"
                   >
                     Testar
                   </button>
                   <button
                     onClick={() => importEventsMutation.mutate(integration.id)}
-                    disabled={importEventsMutation.isPending}
+                    disabled={importEventsMutation.isPending && importEventsMutation.variables === integration.id}
                     className="btn-secondary text-sm flex items-center gap-1"
                   >
-                    <RefreshCw className={`w-3 h-3 ${importEventsMutation.isPending ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-3 h-3 ${importEventsMutation.isPending && importEventsMutation.variables === integration.id ? 'animate-spin' : ''}`} />
                     Importar Eventos
                   </button>
                   <button
                     onClick={() => syncOrdersMutation.mutate(integration.id)}
-                    disabled={syncOrdersMutation.isPending}
+                    disabled={syncOrdersMutation.isPending && syncOrdersMutation.variables === integration.id}
                     className="btn-primary text-sm flex items-center gap-1"
                   >
-                    <RefreshCw className={`w-3 h-3 ${syncOrdersMutation.isPending ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-3 h-3 ${syncOrdersMutation.isPending && syncOrdersMutation.variables === integration.id ? 'animate-spin' : ''}`} />
                     Sincronizar Vendas
                   </button>
                   <button
                     onClick={() => { if (confirm('Remover integração?')) deleteMutation.mutate(integration.id); }}
+                    disabled={deleteMutation.isPending && deleteMutation.variables === integration.id}
                     className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
                   >
                     <Trash2 className="w-4 h-4" />

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { Calendar, ExternalLink, MapPin } from 'lucide-react';
+import Spinner from '../components/ui/Spinner';
 
 export default function EventsPage() {
   const { data: events, isLoading } = useQuery({
@@ -10,7 +11,7 @@ export default function EventsPage() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div></div>;
+    return <Spinner wrapperClassName="py-12" />;
   }
 
   return (

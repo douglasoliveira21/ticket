@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { ScrollText } from 'lucide-react';
+import Spinner from '../components/ui/Spinner';
 
 export default function AuditPage() {
   const [page, setPage] = useState(1);
@@ -33,7 +34,7 @@ export default function AuditPage() {
 
       <div className="card overflow-x-auto">
         {isLoading ? (
-          <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div></div>
+          <Spinner />
         ) : logs.length > 0 ? (
           <>
             <table className="w-full text-sm">

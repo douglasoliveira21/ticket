@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import toast from 'react-hot-toast';
 import { RotateCcw, Send, FileText, Download, XCircle, FileCode, X } from 'lucide-react';
+import { useFeedbackMutation, withToastFeedback } from '../lib/feedback';
+import Spinner from '../components/ui/Spinner';
 
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
@@ -18,36 +19,30 @@ export default function InvoicesPage() {
     }).then(r => r.data),
   });
 
-  const retryMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/invoices/${id}/retry`),
-    onSuccess: () => {
-      toast.success('Nota reprocessada');
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    },
-    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro'),
-  });
+  const retryMutation = useFeedbackMutation(
+    (id: string) => api.post(`/invoices/${id}/retry`),
+    { loading: 'Reprocessando nota...', success: 'Nota reprocessada com sucesso', error: 'Erro ao reprocessar nota' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoices'] }) }
+  );
 
-  const resendMutation = useMutation({
-    mutationFn: ({ id, message }: { id: string; message: string }) =>
-      api.post(`/email/resend/${id}`, { message }),
-    onSuccess: () => {
-      toast.success('E-mail enviado com sucesso');
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      setEmailModal(null);
-      setEmailMessage('');
-    },
-    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro ao enviar'),
-  });
+  const resendMutation = useFeedbackMutation(
+    ({ id, message }: { id: string; message: string }) => api.post(`/email/resend/${id}`, { message }),
+    { loading: 'Enviando e-mail...', success: 'E-mail enviado com sucesso', error: 'Erro ao enviar e-mail' },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        setEmailModal(null);
+        setEmailMessage('');
+      },
+    }
+  );
 
-  const cancelMutation = useMutation({
-    mutationFn: ({ id, codigoCancelamento }: { id: string; codigoCancelamento: string }) =>
+  const cancelMutation = useFeedbackMutation(
+    ({ id, codigoCancelamento }: { id: string; codigoCancelamento: string }) =>
       api.post(`/invoices/${id}/cancel`, { codigoCancelamento }),
-    onSuccess: () => {
-      toast.success('Nota cancelada com sucesso');
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    },
-    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro ao cancelar'),
-  });
+    { loading: 'Cancelando nota...', success: 'Nota cancelada com sucesso', error: 'Erro ao cancelar nota' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoices'] }) }
+  );
 
   const invoices = data?.data || [];
   const pagination = data?.pagination;
@@ -62,39 +57,41 @@ export default function InvoicesPage() {
   }
 
   async function handleDownloadXml(invoiceId: string, numeroNota: string | null) {
-    try {
-      const response = await api.get(`/invoices/${invoiceId}/download-xml`, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: 'application/xml' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `nfse-${numeroNota || 'nota'}.xml`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch {
-      toast.error('Erro ao baixar XML da nota');
-    }
+    await withToastFeedback(
+      async () => {
+        const response = await api.get(`/invoices/${invoiceId}/download-xml`, { responseType: 'blob' });
+        const blob = new Blob([response.data], { type: 'application/xml' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nfse-${numeroNota || 'nota'}.xml`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      },
+      { loading: 'Baixando XML...', success: 'Download concluído', error: 'Erro ao baixar XML da nota' }
+    ).catch(() => {});
   }
 
   async function handleDownloadPdf(invoiceId: string, numeroNota: string | null) {
-    try {
-      const response = await api.get(`/invoices/${invoiceId}/download-pdf`, { responseType: 'blob' });
-      const contentType = String(response.headers['content-type'] || 'application/pdf');
-      const ext = contentType.includes('pdf') ? 'pdf' : 'html';
-      const blob = new Blob([response.data], { type: contentType });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `danfse-${numeroNota || 'nota'}.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch {
-      toast.error('Erro ao baixar nota fiscal');
-    }
+    await withToastFeedback(
+      async () => {
+        const response = await api.get(`/invoices/${invoiceId}/download-pdf`, { responseType: 'blob' });
+        const contentType = String(response.headers['content-type'] || 'application/pdf');
+        const ext = contentType.includes('pdf') ? 'pdf' : 'html';
+        const blob = new Blob([response.data], { type: contentType });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `danfse-${numeroNota || 'nota'}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      },
+      { loading: 'Baixando nota fiscal...', success: 'Download concluído', error: 'Erro ao baixar nota fiscal' }
+    ).catch(() => {});
   }
 
   function openEmailModal(invoice: any) {
@@ -135,7 +132,7 @@ export default function InvoicesPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div></div>
+          <Spinner />
         ) : invoices.length > 0 ? (
           <>
             <div className="overflow-x-auto">
@@ -206,7 +203,7 @@ export default function InvoicesPage() {
                                 onClick={() => handleCancelInvoice(invoice.id, invoice.numeroNota)}
                                 className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                                 title="Cancelar nota"
-                                disabled={cancelMutation.isPending}
+                                disabled={cancelMutation.isPending && cancelMutation.variables?.id === invoice.id}
                               >
                                 <XCircle className="w-4 h-4" />
                               </button>
@@ -215,6 +212,7 @@ export default function InvoicesPage() {
                           {invoice.status === 'ERROR' && (
                             <button
                               onClick={() => retryMutation.mutate(invoice.id)}
+                              disabled={retryMutation.isPending && retryMutation.variables === invoice.id}
                               className="p-1.5 text-orange-600 hover:bg-orange-50 rounded"
                               title="Tentar novamente"
                             >

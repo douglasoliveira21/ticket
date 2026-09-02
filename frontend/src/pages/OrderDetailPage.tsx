@@ -1,8 +1,9 @@
 import { useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import toast from 'react-hot-toast';
 import { FileText, Send, XCircle } from 'lucide-react';
+import { useFeedbackMutation } from '../lib/feedback';
+import Spinner from '../components/ui/Spinner';
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -13,31 +14,25 @@ export default function OrderDetailPage() {
     queryFn: () => api.get(`/orders/${id}`).then(r => r.data.data),
   });
 
-  const issueMutation = useMutation({
-    mutationFn: () => api.post(`/invoices/issue/${id}`),
-    onSuccess: () => {
-      toast.success('Nota emitida');
-      queryClient.invalidateQueries({ queryKey: ['order', id] });
-    },
-    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro'),
-  });
+  const issueMutation = useFeedbackMutation(
+    () => api.post(`/invoices/issue/${id}`),
+    { loading: 'Emitindo NFS-e...', success: 'Nota emitida com sucesso', error: 'Erro ao emitir nota' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['order', id] }) }
+  );
 
-  const resendMutation = useMutation({
-    mutationFn: (invoiceId: string) => api.post(`/email/resend/${invoiceId}`),
-    onSuccess: () => toast.success('E-mail reenviado'),
-    onError: (error: any) => toast.error(error.response?.data?.error || 'Erro ao reenviar'),
-  });
+  const resendMutation = useFeedbackMutation(
+    (invoiceId: string) => api.post(`/email/resend/${invoiceId}`),
+    { loading: 'Reenviando e-mail...', success: 'E-mail reenviado com sucesso', error: 'Erro ao reenviar e-mail' }
+  );
 
-  const ignoreMutation = useMutation({
-    mutationFn: () => api.put(`/orders/${id}/ignore`),
-    onSuccess: () => {
-      toast.success('Status atualizado');
-      queryClient.invalidateQueries({ queryKey: ['order', id] });
-    },
-  });
+  const ignoreMutation = useFeedbackMutation(
+    () => api.put(`/orders/${id}/ignore`),
+    { loading: 'Atualizando status...', success: 'Status atualizado', error: 'Erro ao atualizar status' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['order', id] }) }
+  );
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div></div>;
+    return <Spinner wrapperClassName="py-12" />;
   }
 
   if (!order) return <p>Venda não encontrada</p>;
@@ -56,12 +51,12 @@ export default function OrderDetailPage() {
             </button>
           )}
           {latestInvoice?.status === 'ISSUED' && (
-            <button onClick={() => resendMutation.mutate(latestInvoice.id)} className="btn-secondary flex items-center gap-2">
+            <button onClick={() => resendMutation.mutate(latestInvoice.id)} disabled={resendMutation.isPending} className="btn-secondary flex items-center gap-2">
               <Send className="w-4 h-4" />
               Reenviar E-mail
             </button>
           )}
-          <button onClick={() => ignoreMutation.mutate()} className="btn-secondary flex items-center gap-2">
+          <button onClick={() => ignoreMutation.mutate()} disabled={ignoreMutation.isPending} className="btn-secondary flex items-center gap-2">
             <XCircle className="w-4 h-4" />
             {order.ignored ? 'Restaurar' : 'Ignorar'}
           </button>
@@ -125,8 +120,8 @@ export default function OrderDetailPage() {
             {order.invoices.map((invoice: any) => (
               <div key={invoice.id} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <span className={`badge-${invoice.status === 'ISSUED' ? 'success' : invoice.status === 'ERROR' ? 'error' : 'warning'}`}>
-                    {invoice.status === 'ISSUED' ? 'Emitida' : invoice.status === 'ERROR' ? 'Erro' : 'Processando'}
+                  <span className={`badge-${invoice.status === 'ISSUED' ? 'success' : invoice.status === 'ERROR' ? 'error' : invoice.status === 'CANCELLED' ? 'info' : 'warning'}`}>
+                    {invoice.status === 'ISSUED' ? 'Emitida' : invoice.status === 'ERROR' ? 'Erro' : invoice.status === 'CANCELLED' ? 'Cancelada' : 'Processando'}
                   </span>
                   {invoice.dataEmissao && (
                     <span className="text-sm text-gray-500">

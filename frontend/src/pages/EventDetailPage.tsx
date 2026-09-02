@@ -1,8 +1,9 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import toast from 'react-hot-toast';
 import { useState } from 'react';
+import { useFeedbackMutation } from '../lib/feedback';
+import Spinner from '../components/ui/Spinner';
 
 export default function EventDetailPage() {
   const { id } = useParams();
@@ -28,17 +29,16 @@ export default function EventDetailPage() {
     },
   });
 
-  const settingsMutation = useMutation({
-    mutationFn: (data: any) => api.put(`/events/${id}/settings`, {
+  const settingsMutation = useFeedbackMutation(
+    (data: any) => api.put(`/events/${id}/settings`, {
       ...data,
       aliquotaIss: data.aliquotaIss ? parseFloat(data.aliquotaIss) : undefined,
     }),
-    onSuccess: () => toast.success('Configurações salvas'),
-    onError: () => toast.error('Erro ao salvar'),
-  });
+    { loading: 'Salvando configurações...', success: 'Configurações salvas', error: 'Erro ao salvar configurações' }
+  );
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div></div>;
+    return <Spinner wrapperClassName="py-12" />;
   }
 
   if (!event) return <p>Evento não encontrado</p>;
@@ -117,7 +117,7 @@ export default function EventDetailPage() {
             </div>
           </div>
           <button type="submit" disabled={settingsMutation.isPending} className="btn-primary">
-            Salvar Configurações
+            {settingsMutation.isPending ? 'Salvando...' : 'Salvar Configurações'}
           </button>
         </form>
       </div>
@@ -151,8 +151,8 @@ export default function EventDetailPage() {
                   <td className="py-2">{new Date(order.purchaseDate).toLocaleDateString('pt-BR')}</td>
                   <td className="py-2">
                     {order.invoices?.length > 0 ? (
-                      <span className={`badge-${order.invoices[0].status === 'ISSUED' ? 'success' : order.invoices[0].status === 'ERROR' ? 'error' : 'warning'}`}>
-                        {order.invoices[0].status === 'ISSUED' ? 'Emitida' : order.invoices[0].status === 'ERROR' ? 'Erro' : 'Pendente'}
+                      <span className={`badge-${order.invoices[0].status === 'ISSUED' ? 'success' : order.invoices[0].status === 'ERROR' ? 'error' : order.invoices[0].status === 'CANCELLED' ? 'info' : 'warning'}`}>
+                        {order.invoices[0].status === 'ISSUED' ? 'Emitida' : order.invoices[0].status === 'ERROR' ? 'Erro' : order.invoices[0].status === 'CANCELLED' ? 'Cancelada' : 'Pendente'}
                       </span>
                     ) : (
                       <span className="badge-warning">Pendente</span>

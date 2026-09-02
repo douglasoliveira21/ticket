@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { withToastFeedback } from '../lib/feedback';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,11 +15,14 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
+      await withToastFeedback(() => login(email, password), {
+        loading: 'Entrando...',
+        success: 'Login realizado com sucesso',
+        error: 'Erro ao fazer login',
+      });
       navigate('/dashboard');
-      toast.success('Login realizado com sucesso');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erro ao fazer login');
+    } catch {
+      // erro já exibido pelo toast
     } finally {
       setLoading(false);
     }

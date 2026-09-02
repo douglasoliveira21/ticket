@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import toast from 'react-hot-toast';
+import { useFeedbackMutation } from '../lib/feedback';
+import Spinner from '../components/ui/Spinner';
 
 export default function CompanyPage() {
   const queryClient = useQueryClient();
@@ -58,19 +59,14 @@ export default function CompanyPage() {
     }
   }, [data]);
 
-  const mutation = useMutation({
-    mutationFn: (data: any) => api.put('/companies/me', {
+  const mutation = useFeedbackMutation(
+    (data: any) => api.put('/companies/me', {
       ...data,
       aliquotaIss: data.aliquotaIss ? parseFloat(data.aliquotaIss) : undefined,
     }),
-    onSuccess: () => {
-      toast.success('Empresa atualizada com sucesso');
-      queryClient.invalidateQueries({ queryKey: ['company'] });
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Erro ao atualizar');
-    },
-  });
+    { loading: 'Salvando dados da empresa...', success: 'Empresa atualizada com sucesso', error: 'Erro ao atualizar empresa' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['company'] }) }
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,7 +78,7 @@ export default function CompanyPage() {
   }
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div></div>;
+    return <Spinner wrapperClassName="py-12" />;
   }
 
   return (

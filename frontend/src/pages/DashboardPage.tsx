@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
+import Spinner from '../components/ui/Spinner';
 import {
   Calendar,
   ShoppingCart,
@@ -18,11 +19,7 @@ export default function DashboardPage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div>
-      </div>
-    );
+    return <Spinner wrapperClassName="items-center h-64" />;
   }
 
   const stats = data?.stats;

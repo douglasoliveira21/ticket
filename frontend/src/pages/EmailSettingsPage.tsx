@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import toast from 'react-hot-toast';
+import { useFeedbackMutation } from '../lib/feedback';
 
 export default function EmailSettingsPage() {
   const queryClient = useQueryClient();
@@ -38,14 +38,11 @@ export default function EmailSettingsPage() {
     }
   }, [data]);
 
-  const mutation = useMutation({
-    mutationFn: (data: any) => api.put('/email/settings', data),
-    onSuccess: () => {
-      toast.success('Configurações salvas');
-      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
-    },
-    onError: () => toast.error('Erro ao salvar'),
-  });
+  const mutation = useFeedbackMutation(
+    (data: any) => api.put('/email/settings', data),
+    { loading: 'Salvando configurações...', success: 'Configurações salvas', error: 'Erro ao salvar configurações' },
+    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-settings'] }) }
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
