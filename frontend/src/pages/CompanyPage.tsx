@@ -183,11 +183,11 @@ export default function CompanyPage() {
                 value={form.cTribNac}
                 onChange={handleChange}
                 className="input-field"
-                placeholder={form.codigoServico ? `Ex: ${form.codigoServico.replace(/\D/g, '')}00` : 'Ex: 120700'}
+                placeholder={form.codigoServico ? `Ex: ${form.codigoServico.replace(/\D/g, '')}01` : 'Ex: 120801'}
                 maxLength={6}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Exigido pela NFS-e Nacional. Se deixado em branco, o sistema usa o Código de Serviço + "00" como padrão.
+                Exigido pela NFS-e Nacional. Se deixado em branco, o sistema usa o Código de Serviço + "01" como padrão (confira o desdobro exato no Anexo B da tabela nacional).
               </p>
             </div>
             <div>
