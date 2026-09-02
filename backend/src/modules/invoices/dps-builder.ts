@@ -174,7 +174,9 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
           <tpRetISSQN>1</tpRetISSQN>
         </tribMun>
         <totTrib>
-          <indTotTrib>0</indTotTrib>
+          ${regTrib.opSimpNac === '1'
+            ? '<pTotTrib>\n            <pTotTribFed>0.00</pTotTribFed>\n            <pTotTribEst>0.00</pTotTribEst>\n            <pTotTribMun>0.00</pTotTribMun>\n          </pTotTrib>'
+            : '<indTotTrib>0</indTotTrib>'}
         </totTrib>
       </trib>
     </valores>
