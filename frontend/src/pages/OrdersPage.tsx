@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
-import { FileText, Eye } from 'lucide-react';
+import { FileText, Eye, ShoppingCart } from 'lucide-react';
 import { useFeedbackMutation } from '../lib/feedback';
 import Spinner from '../components/ui/Spinner';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function OrdersPage() {
   const queryClient = useQueryClient();
@@ -55,6 +56,7 @@ export default function OrdersPage() {
 
   const orders = data?.data || [];
   const pagination = data?.pagination;
+  const hasFilters = !!search || !!statusFilter;
 
   function toggleSelectOrder(id: string) {
     setSelectedOrders(prev =>
@@ -67,11 +69,25 @@ export default function OrdersPage() {
     setSelectedOrders(pending.map((o: any) => o.id));
   }
 
+  function clearFilters() {
+    setSearch('');
+    setStatusFilter('');
+    setPage(1);
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h2 className="text-2xl font-bold text-gray-800">Vendas</h2>
-        {selectedOrders.length > 0 && (
+      <div className="page-header">
+        <h1>Vendas</h1>
+        <p>Vendas importadas e status de emissão de NFS-e.</p>
+      </div>
+
+      {/* Barra de ação em lote */}
+      {selectedOrders.length > 0 && (
+        <div className="card bg-primary-50 border-primary-200 flex items-center justify-between flex-wrap gap-4">
+          <p className="text-sm font-medium text-primary-800">
+            {selectedOrders.length} venda(s) selecionada(s)
+          </p>
           <button
             onClick={() => {
               if (confirm(`Emitir notas para ${selectedOrders.length} vendas selecionadas?`)) {
@@ -84,12 +100,12 @@ export default function OrdersPage() {
             <FileText className="w-4 h-4" />
             Emitir {selectedOrders.length} nota(s)
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card">
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <input
             type="text"
             placeholder="Buscar por nome ou e-mail..."
@@ -107,7 +123,12 @@ export default function OrdersPage() {
             <option value="ISSUED">Emitidas</option>
             <option value="ERROR">Com erro</option>
           </select>
-          <button onClick={selectAllPending} className="btn-secondary text-sm">
+          {hasFilters && (
+            <button onClick={clearFilters} className="text-sm text-primary-700 hover:underline">
+              Limpar filtros
+            </button>
+          )}
+          <button onClick={selectAllPending} className="btn-secondary text-sm ml-auto">
             Selecionar pendentes
           </button>
         </div>
@@ -121,22 +142,23 @@ export default function OrdersPage() {
           <>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-3 px-2 text-left">
+                <tr className="border-b border-gray-200 sticky top-0 bg-white">
+                  <th className="table-th">
                     <input
                       type="checkbox"
                       onChange={e => e.target.checked ? selectAllPending() : setSelectedOrders([])}
                       checked={selectedOrders.length > 0}
                       className="rounded"
+                      aria-label="Selecionar todas as vendas pendentes"
                     />
                   </th>
-                  <th className="py-3 px-2 text-left font-medium text-gray-600">Cliente</th>
-                  <th className="py-3 px-2 text-left font-medium text-gray-600">Evento</th>
-                  <th className="py-3 px-2 text-left font-medium text-gray-600">Ticket</th>
-                  <th className="py-3 px-2 text-left font-medium text-gray-600">Valor</th>
-                  <th className="py-3 px-2 text-left font-medium text-gray-600">Data</th>
-                  <th className="py-3 px-2 text-left font-medium text-gray-600">NFS-e</th>
-                  <th className="py-3 px-2 text-left font-medium text-gray-600">Ações</th>
+                  <th className="table-th">Cliente</th>
+                  <th className="table-th">Evento</th>
+                  <th className="table-th">Ticket</th>
+                  <th className="table-th text-right">Valor</th>
+                  <th className="table-th">Data</th>
+                  <th className="table-th">NFS-e</th>
+                  <th className="table-th">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -146,27 +168,28 @@ export default function OrdersPage() {
 
                   return (
                     <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-3 px-2">
+                      <td className="table-td">
                         {canIssue && (
                           <input
                             type="checkbox"
                             checked={selectedOrders.includes(order.id)}
                             onChange={() => toggleSelectOrder(order.id)}
                             className="rounded"
+                            aria-label={`Selecionar venda de ${order.buyerName}`}
                           />
                         )}
                       </td>
-                      <td className="py-3 px-2">
+                      <td className="table-td">
                         <p className="font-medium text-gray-800">{order.buyerName}</p>
                         <p className="text-xs text-gray-500">{order.buyerEmail}</p>
                       </td>
-                      <td className="py-3 px-2 text-gray-600">{order.event?.name || '-'}</td>
-                      <td className="py-3 px-2 text-gray-600">{order.ticketType || '-'}</td>
-                      <td className="py-3 px-2 font-medium">R$ {order.amount?.toFixed(2)}</td>
-                      <td className="py-3 px-2 text-gray-600">
+                      <td className="table-td text-gray-600">{order.event?.name || '-'}</td>
+                      <td className="table-td text-gray-600">{order.ticketType || '-'}</td>
+                      <td className="table-td text-right font-medium tabular-nums">R$ {order.amount?.toFixed(2)}</td>
+                      <td className="table-td text-gray-600">
                         {new Date(order.purchaseDate).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className="py-3 px-2">
+                      <td className="table-td">
                         {invoice ? (
                           <span className={`badge-${invoice.status === 'ISSUED' ? 'success' : invoice.status === 'ERROR' ? 'error' : invoice.status === 'CANCELLED' ? 'info' : 'warning'}`}>
                             {invoice.status === 'ISSUED' ? `Emitida #${invoice.numeroNota}` : invoice.status === 'ERROR' ? 'Erro' : invoice.status === 'CANCELLED' ? 'Cancelada' : 'Processando'}
@@ -177,7 +200,7 @@ export default function OrdersPage() {
                           <span className="badge-warning">Pendente</span>
                         )}
                       </td>
-                      <td className="py-3 px-2">
+                      <td className="table-td">
                         <div className="flex items-center gap-1">
                           {canIssue && (
                             <button
@@ -185,6 +208,7 @@ export default function OrdersPage() {
                               disabled={issueMutation.isPending && issueMutation.variables === order.id}
                               className="p-1.5 text-primary-700 hover:bg-primary-50 rounded"
                               title="Emitir NFS-e"
+                              aria-label="Emitir NFS-e"
                             >
                               <FileText className="w-4 h-4" />
                             </button>
@@ -193,6 +217,7 @@ export default function OrdersPage() {
                             to={`/vendas/${order.id}`}
                             className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
                             title="Ver detalhes"
+                            aria-label="Ver detalhes da venda"
                           >
                             <Eye className="w-4 h-4" />
                           </Link>
@@ -233,9 +258,7 @@ export default function OrdersPage() {
             )}
           </>
         ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Nenhuma venda encontrada</p>
-          </div>
+          <EmptyState icon={ShoppingCart} title="Nenhuma venda encontrada" />
         )}
       </div>
     </div>

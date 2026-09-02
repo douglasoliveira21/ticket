@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { RotateCcw, Send, FileText, Download, XCircle, FileCode, X } from 'lucide-react';
 import { useFeedbackMutation, withToastFeedback } from '../lib/feedback';
 import Spinner from '../components/ui/Spinner';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [emailModal, setEmailModal] = useState<{ invoiceId: string; buyerName: string; buyerEmail: string } | null>(null);
   const [emailMessage, setEmailMessage] = useState('');
 
@@ -111,12 +114,13 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Notas Fiscais</h2>
+      <div className="page-header">
+        <h1>Notas Fiscais</h1>
+        <p>Acompanhe as NFS-e emitidas, pendentes e com erro.</p>
       </div>
 
       <div className="card">
-        <div className="flex gap-4 mb-4">
+        <div className="flex items-center gap-4 mb-4">
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
@@ -129,6 +133,11 @@ export default function InvoicesPage() {
             <option value="ERROR">Com erro</option>
             <option value="CANCELLED">Canceladas</option>
           </select>
+          {statusFilter && (
+            <button onClick={() => { setStatusFilter(''); setPage(1); }} className="text-sm text-primary-700 hover:underline">
+              Limpar filtro
+            </button>
+          )}
         </div>
 
         {isLoading ? (
@@ -138,43 +147,43 @@ export default function InvoicesPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-3 px-2 text-left font-medium text-gray-600">Número</th>
-                    <th className="py-3 px-2 text-left font-medium text-gray-600">Cliente</th>
-                    <th className="py-3 px-2 text-left font-medium text-gray-600">Evento</th>
-                    <th className="py-3 px-2 text-left font-medium text-gray-600">Valor</th>
-                    <th className="py-3 px-2 text-left font-medium text-gray-600">Status</th>
-                    <th className="py-3 px-2 text-left font-medium text-gray-600">Data Emissão</th>
-                    <th className="py-3 px-2 text-left font-medium text-gray-600">E-mail</th>
-                    <th className="py-3 px-2 text-left font-medium text-gray-600">Ações</th>
+                  <tr className="border-b border-gray-200 sticky top-0 bg-white">
+                    <th className="table-th">Número</th>
+                    <th className="table-th">Cliente</th>
+                    <th className="table-th">Evento</th>
+                    <th className="table-th text-right">Valor</th>
+                    <th className="table-th">Status</th>
+                    <th className="table-th">Data Emissão</th>
+                    <th className="table-th">E-mail</th>
+                    <th className="table-th">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoices.map((invoice: any) => (
                     <tr key={invoice.id} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-3 px-2 font-medium">{invoice.numeroNota || '-'}</td>
-                      <td className="py-3 px-2">
+                      <td className="table-td font-medium">{invoice.numeroNota || '-'}</td>
+                      <td className="table-td">
                         <p>{invoice.order?.buyerName}</p>
                         <p className="text-xs text-gray-500">{invoice.order?.buyerEmail}</p>
                       </td>
-                      <td className="py-3 px-2 text-gray-600">{invoice.order?.event?.name || '-'}</td>
-                      <td className="py-3 px-2">R$ {invoice.valorServico?.toFixed(2)}</td>
-                      <td className="py-3 px-2">
+                      <td className="table-td text-gray-600">{invoice.order?.event?.name || '-'}</td>
+                      <td className="table-td text-right tabular-nums">R$ {invoice.valorServico?.toFixed(2)}</td>
+                      <td className="table-td">
                         <span className={`badge-${invoice.status === 'ISSUED' ? 'success' : invoice.status === 'ERROR' ? 'error' : invoice.status === 'CANCELLED' ? 'info' : 'warning'}`}>
                           {invoice.status === 'ISSUED' ? 'Emitida' : invoice.status === 'ERROR' ? 'Erro' : invoice.status === 'CANCELLED' ? 'Cancelada' : 'Pendente'}
                         </span>
                       </td>
-                      <td className="py-3 px-2">
+                      <td className="table-td">
                         {invoice.dataEmissao ? new Date(invoice.dataEmissao).toLocaleDateString('pt-BR') : '-'}
                       </td>
-                      <td className="py-3 px-2">
+                      <td className="table-td">
                         {invoice.emailSent ? (
                           <span className="text-green-600 text-xs">✓ Enviado</span>
                         ) : (
                           <span className="text-gray-400 text-xs">Não</span>
                         )}
                       </td>
-                      <td className="py-3 px-2">
+                      <td className="table-td">
                         <div className="flex gap-1">
                           {invoice.status === 'ISSUED' && (
                             <>
@@ -182,6 +191,7 @@ export default function InvoicesPage() {
                                 onClick={() => handleDownloadPdf(invoice.id, invoice.numeroNota)}
                                 className="p-1.5 text-green-600 hover:bg-green-50 rounded"
                                 title="Baixar nota fiscal"
+                                aria-label="Baixar nota fiscal"
                               >
                                 <Download className="w-4 h-4" />
                               </button>
@@ -189,6 +199,7 @@ export default function InvoicesPage() {
                                 onClick={() => handleDownloadXml(invoice.id, invoice.numeroNota)}
                                 className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"
                                 title="Baixar XML"
+                                aria-label="Baixar XML"
                               >
                                 <FileCode className="w-4 h-4" />
                               </button>
@@ -196,6 +207,7 @@ export default function InvoicesPage() {
                                 onClick={() => openEmailModal(invoice)}
                                 className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
                                 title="Enviar por e-mail"
+                                aria-label="Enviar por e-mail"
                               >
                                 <Send className="w-4 h-4" />
                               </button>
@@ -203,6 +215,7 @@ export default function InvoicesPage() {
                                 onClick={() => handleCancelInvoice(invoice.id, invoice.numeroNota)}
                                 className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                                 title="Cancelar nota"
+                                aria-label="Cancelar nota"
                                 disabled={cancelMutation.isPending && cancelMutation.variables?.id === invoice.id}
                               >
                                 <XCircle className="w-4 h-4" />
@@ -215,6 +228,7 @@ export default function InvoicesPage() {
                               disabled={retryMutation.isPending && retryMutation.variables === invoice.id}
                               className="p-1.5 text-orange-600 hover:bg-orange-50 rounded"
                               title="Tentar novamente"
+                              aria-label="Tentar novamente"
                             >
                               <RotateCcw className="w-4 h-4" />
                             </button>
@@ -239,10 +253,7 @@ export default function InvoicesPage() {
             )}
           </>
         ) : (
-          <div className="text-center py-8">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Nenhuma nota fiscal encontrada</p>
-          </div>
+          <EmptyState icon={FileText} title="Nenhuma nota fiscal encontrada" />
         )}
       </div>
 

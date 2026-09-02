@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useFeedbackMutation } from '../lib/feedback';
 import Spinner from '../components/ui/Spinner';
+import SettingsTabs from '../components/ui/SettingsTabs';
 
 export default function CompanyPage() {
   const queryClient = useQueryClient();
@@ -82,8 +83,12 @@ export default function CompanyPage() {
   }
 
   return (
-    <div className="max-w-4xl">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Dados da Empresa</h2>
+    <div className="max-w-4xl space-y-6">
+      <div className="page-header">
+        <h1>Configurações</h1>
+        <p>Dados da empresa, informações fiscais e configurações de e-mail.</p>
+      </div>
+      <SettingsTabs />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="card">

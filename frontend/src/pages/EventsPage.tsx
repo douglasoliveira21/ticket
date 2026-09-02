@@ -16,8 +16,9 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Eventos</h2>
+      <div className="page-header">
+        <h1>Eventos</h1>
+        <p>Eventos importados via Sympla.</p>
       </div>
 
       {events?.length > 0 ? (

@@ -41,8 +41,8 @@ export default function OrderDetailPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Detalhe da Venda</h2>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Detalhe da Venda</h1>
         <div className="flex gap-2">
           {(!latestInvoice || latestInvoice.status === 'CANCELLED') && order.orderStatus === 'approved' && !order.ignored && (
             <button onClick={() => issueMutation.mutate()} disabled={issueMutation.isPending} className="btn-primary flex items-center gap-2">

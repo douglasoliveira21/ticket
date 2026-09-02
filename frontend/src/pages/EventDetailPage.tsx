@@ -45,9 +45,9 @@ export default function EventDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">{event.name}</h2>
-        <p className="text-gray-500">{event.location} • {event.startDate && new Date(event.startDate).toLocaleDateString('pt-BR')}</p>
+      <div className="page-header">
+        <h1>{event.name}</h1>
+        <p>{event.location} • {event.startDate && new Date(event.startDate).toLocaleDateString('pt-BR')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

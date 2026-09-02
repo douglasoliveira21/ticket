@@ -69,10 +69,10 @@ export default function SymplaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Integração Sympla</h2>
-          <p className="text-gray-500 mt-1">Configure o token da API Sympla para importar eventos e vendas</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="page-header mb-0">
+          <h1>Integração Sympla</h1>
+          <p>Configure o token da API Sympla para importar eventos e vendas.</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />

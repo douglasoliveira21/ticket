@@ -30,7 +30,10 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">Logs e Auditoria</h2>
+      <div className="page-header">
+        <h1>Logs e Auditoria</h1>
+        <p>Histórico de ações realizadas no sistema.</p>
+      </div>
 
       <div className="card overflow-x-auto">
         {isLoading ? (

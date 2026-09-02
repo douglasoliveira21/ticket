@@ -3,36 +3,77 @@
 @tailwind utilities;
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: theme('fontFamily.sans');
   background-color: #f9fafb;
+}
+
+@layer base {
+  /* Foco visível padrão para qualquer elemento interativo que não tenha
+     um tratamento de foco próprio (inputs e botões já têm o deles). */
+  a:focus-visible,
+  button:focus-visible,
+  [tabindex]:focus-visible {
+    @apply outline-none ring-2 ring-primary-700 ring-offset-2 ring-offset-white rounded-md;
+  }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-700 text-white px-4 py-2 rounded-lg hover:bg-primary-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-primary-700 text-white px-4 py-2 rounded-lg hover:bg-primary-800 active:scale-[0.98] transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2;
   }
   .btn-secondary {
-    @apply bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium border border-gray-300;
+    @apply bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all font-medium border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2;
   }
   .btn-danger {
-    @apply bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium;
+    @apply bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 active:scale-[0.98] transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2;
   }
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-700 focus:border-transparent outline-none transition-all;
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg placeholder:text-gray-400 focus:ring-2 focus:ring-primary-700 focus:border-transparent outline-none transition-all;
   }
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded-xl shadow-card border border-gray-100 p-6;
   }
-  .badge-success {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800;
+  .badge-success, .badge-warning, .badge-error, .badge-info {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
-  .badge-warning {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800;
+  .badge-success::before, .badge-warning::before, .badge-error::before, .badge-info::before {
+    content: '';
+    @apply w-1.5 h-1.5 rounded-full flex-shrink-0;
   }
-  .badge-error {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800;
+  .badge-success { @apply bg-green-100 text-green-800; }
+  .badge-success::before { @apply bg-green-600; }
+  .badge-warning { @apply bg-yellow-100 text-yellow-800; }
+  .badge-warning::before { @apply bg-yellow-600; }
+  .badge-error { @apply bg-red-100 text-red-800; }
+  .badge-error::before { @apply bg-red-600; }
+  .badge-info { @apply bg-blue-100 text-blue-800; }
+  .badge-info::before { @apply bg-blue-600; }
+
+  .page-header {
+    @apply mb-2;
   }
-  .badge-info {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800;
+  .page-header h1 {
+    @apply text-2xl font-bold text-gray-900;
+  }
+  .page-header p {
+    @apply text-sm text-gray-500 mt-1;
+  }
+  .section-title {
+    @apply text-lg font-semibold text-gray-800;
+  }
+  .table-th {
+    @apply py-3 px-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide;
+  }
+  .table-td {
+    @apply py-3 px-3 text-sm text-gray-700;
+  }
+  .empty-state {
+    @apply text-center py-12;
+  }
+  .empty-state svg {
+    @apply w-12 h-12 text-gray-300 mx-auto mb-3;
+  }
+  .empty-state p {
+    @apply text-gray-500;
   }
 }

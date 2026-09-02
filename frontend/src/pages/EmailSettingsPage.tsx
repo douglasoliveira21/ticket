@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useFeedbackMutation } from '../lib/feedback';
 import Spinner from '../components/ui/Spinner';
 import { Send, CheckCircle, XCircle } from 'lucide-react';
+import SettingsTabs from '../components/ui/SettingsTabs';
 
 export default function EmailSettingsPage() {
   const queryClient = useQueryClient();
@@ -84,7 +85,12 @@ export default function EmailSettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">Configurações de E-mail</h2>
+      <div className="page-header">
+        <h1>Configurações</h1>
+        <p>Dados da empresa, informações fiscais e configurações de e-mail.</p>
+      </div>
+      <SettingsTabs />
+      <h2 className="text-xl font-semibold text-gray-800">Configurações de E-mail</h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="card">

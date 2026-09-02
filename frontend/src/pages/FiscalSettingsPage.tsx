@@ -4,6 +4,7 @@ import { Upload, Shield, Trash2, CheckCircle, AlertTriangle } from 'lucide-react
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { useFeedbackMutation } from '../lib/feedback';
+import SettingsTabs from '../components/ui/SettingsTabs';
 
 export default function FiscalSettingsPage() {
   const queryClient = useQueryClient();
@@ -100,7 +101,12 @@ export default function FiscalSettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">Configurações Fiscais - NFS-e</h2>
+      <div className="page-header">
+        <h1>Configurações</h1>
+        <p>Dados da empresa, informações fiscais e configurações de e-mail.</p>
+      </div>
+      <SettingsTabs />
+      <h2 className="text-xl font-semibold text-gray-800">Configurações Fiscais - NFS-e</h2>
 
       {/* Certificado Digital A1 */}
       <div className="card">
