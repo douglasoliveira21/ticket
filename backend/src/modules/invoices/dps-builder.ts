@@ -187,11 +187,13 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
 }
 
 /**
- * Assina digitalmente o elemento infDPS (assinatura enveloped, conforme
- * exigido pelo Sistema Nacional NFS-e), inserindo <Signature> como último
- * filho de <DPS>.
+ * Assina digitalmente (enveloped, XMLDSIG) o elemento cujo Id está em
+ * `elementLocalName` (ex: "infDPS", "infPedReg"), inserindo <Signature>
+ * logo após esse elemento - padrão exigido pelo Sistema Nacional NFS-e
+ * tanto para a DPS quanto para eventos (cancelamento, etc).
  */
-export function signDps(xml: string, certPem: string, keyPem: string): string {
+export function signXmlElement(xml: string, certPem: string, keyPem: string, elementLocalName: string): string {
+  const xpath = `//*[local-name(.)='${elementLocalName}']`;
   const sig = new SignedXml({
     privateKey: keyPem,
     publicCert: certPem,
@@ -200,7 +202,7 @@ export function signDps(xml: string, certPem: string, keyPem: string): string {
   });
 
   sig.addReference({
-    xpath: "//*[local-name(.)='infDPS']",
+    xpath,
     digestAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
     transforms: [
       'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
@@ -209,8 +211,59 @@ export function signDps(xml: string, certPem: string, keyPem: string): string {
   });
 
   sig.computeSignature(xml, {
-    location: { reference: "//*[local-name(.)='infDPS']", action: 'after' },
+    location: { reference: xpath, action: 'after' },
   });
 
   return sig.getSignedXml();
+}
+
+/** @deprecated use signXmlElement(xml, certPem, keyPem, 'infDPS') */
+export function signDps(xml: string, certPem: string, keyPem: string): string {
+  return signXmlElement(xml, certPem, keyPem, 'infDPS');
+}
+
+export interface PedRegEventoData {
+  chaveNFSe: string;
+  cnpjAutor: string;
+  codigoMotivo: '1' | '2' | '9';
+  descricaoMotivo: string;
+  dataEvento: Date;
+  nPedRegEvento: number;
+}
+
+/**
+ * Monta o Id do pedido de registro de evento (59 posições), conforme
+ * TSIdPedRegEvt: "PRE" + Chave de Acesso NFS-e (50) + Tipo do evento (3) +
+ * Número do Pedido de Registro do Evento (3).
+ * Tipo do evento "101" = grupo de cancelamento (e101101).
+ */
+export function buildIdPedRegEvento(chaveNFSe: string, nPedRegEvento: number): string {
+  return `PRE${chaveNFSe}101${pad(String(nPedRegEvento), 3)}`;
+}
+
+/**
+ * Monta o XML do pedido de registro de evento de cancelamento de NFS-e
+ * (e101101), conforme pedRegEvento_v1.01.xsd / tiposEventos_v1.01.xsd.
+ */
+export function buildPedRegEventoCancelamentoXml(data: PedRegEventoData): { xml: string; idPedRegEvento: string } {
+  const idPedRegEvento = buildIdPedRegEvento(data.chaveNFSe, data.nPedRegEvento);
+  const cnpjDigits = data.cnpjAutor.replace(/\D/g, '');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<pedRegEvento xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
+  <infPedReg Id="${idPedRegEvento}">
+    <tpAmb>1</tpAmb>
+    <verAplic>1.0.0</verAplic>
+    <dhEvento>${toBrasiliaDateTime(data.dataEvento)}</dhEvento>
+    <CNPJAutor>${cnpjDigits}</CNPJAutor>
+    <chNFSe>${data.chaveNFSe}</chNFSe>
+    <e101101>
+      <xDesc>Cancelamento de NFS-e</xDesc>
+      <cMotivo>${data.codigoMotivo}</cMotivo>
+      <xMotivo>${escapeXml(data.descricaoMotivo)}</xMotivo>
+    </e101101>
+  </infPedReg>
+</pedRegEvento>`;
+
+  return { xml, idPedRegEvento };
 }

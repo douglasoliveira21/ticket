@@ -14,7 +14,7 @@ import zlib from 'zlib';
 import { decrypt } from '../../common/utils/encryption';
 import { loadCompanyCertificate } from '../company/certificate.controller';
 import { readPfx } from '../../common/utils/pfx';
-import { buildDpsXml, signDps, DpsData, toBrasiliaDateTime } from './dps-builder';
+import { buildDpsXml, signXmlElement, DpsData, buildPedRegEventoCancelamentoXml } from './dps-builder';
 
 export interface NfseData {
   cnpjPrestador: string;
@@ -155,7 +155,7 @@ export class NfseNacionalService {
 
       const { xml, idDps } = this.buildDps(data);
       const { cert: certPem, key: keyPem } = readPfx(cert.buffer, cert.password);
-      const signedXml = signDps(xml, certPem, keyPem);
+      const signedXml = signXmlElement(xml, certPem, keyPem, 'infDPS');
       const dpsXmlGZipB64 = zlib.gzipSync(Buffer.from(signedXml, 'utf-8')).toString('base64');
 
       const response = await this.callSefin('POST', '/nfse', { dpsXmlGZipB64 }, certPem, keyPem);
@@ -225,29 +225,31 @@ export class NfseNacionalService {
 
     try {
       const { cert: certPem, key: keyPem } = readPfx(cert.buffer, cert.password);
-      // O evento de cancelamento segue o schema evento_v1.01.xsd / pedRegEvento_v1.01.xsd.
-      // TODO: este XML ainda não é assinado digitalmente (faltando validar a
-      // estrutura exata de pedRegEvento contra o schema) - o SEFIN Nacional
-      // deve rejeitar até isso ser implementado. Emissão (emitirNfse) já
-      // assina corretamente via signDps; cancelamento precisa do mesmo
-      // tratamento antes de ir para produção.
-      const eventoXml = `<pedRegEvento xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
-  <infPedReg Id="PR${chaveAcesso}">
-    <tpAmb>1</tpAmb>
-    <verAplic>1.0.0</verAplic>
-    <dhEvento>${toBrasiliaDateTime(new Date())}</dhEvento>
-    <CNPJAutor>${cnpjPrestador.replace(/\D/g, '')}</CNPJAutor>
-    <chNFSe>${chaveAcesso}</chNFSe>
-    <nPedRegEvento>1</nPedRegEvento>
-    <e101101>
-      <xDesc>Cancelamento de NFS-e</xDesc>
-      <cMotivo>${codigoCancelamento}</cMotivo>
-    </e101101>
-  </infPedReg>
-</pedRegEvento>`;
-      const gzipB64 = zlib.gzipSync(Buffer.from(eventoXml, 'utf-8')).toString('base64');
+
+      // Mapeia os códigos antigos (ABRASF: 1=Erro na emissão, 2=Serviço não
+      // prestado, 3=Duplicidade) para os da NFS-e Nacional (TSCodJustCanc:
+      // 1=Erro na Emissão, 2=Serviço não Prestado, 9=Outros).
+      const codigoMotivoMap: Record<string, '1' | '2' | '9'> = { '1': '1', '2': '2', '3': '9' };
+      const codigoMotivo = codigoMotivoMap[codigoCancelamento] || '9';
+      const descricaoMotivoMap: Record<'1' | '2' | '9', string> = {
+        '1': 'Erro na emissão da nota fiscal de serviço',
+        '2': 'Serviço não foi efetivamente prestado',
+        '9': 'Cancelamento solicitado pelo prestador do serviço',
+      };
+
+      const { xml, idPedRegEvento } = buildPedRegEventoCancelamentoXml({
+        chaveNFSe: chaveAcesso,
+        cnpjAutor: cnpjPrestador,
+        codigoMotivo,
+        descricaoMotivo: descricaoMotivoMap[codigoMotivo],
+        dataEvento: new Date(),
+        nPedRegEvento: 1,
+      });
+      const signedXml = signXmlElement(xml, certPem, keyPem, 'infPedReg');
+      const gzipB64 = zlib.gzipSync(Buffer.from(signedXml, 'utf-8')).toString('base64');
+
       const response = await this.callSefin('POST', `/nfse/${chaveAcesso}/eventos`, { pedidoRegistroEventoXmlGZipB64: gzipB64 }, certPem, keyPem);
-      return { success: true, xmlRetorno: response };
+      return { success: true, idDps: idPedRegEvento, xmlRetorno: response };
     } catch (error: any) {
       return { success: false, errorMessage: error.message || 'Erro ao cancelar NFS-e' };
     }
