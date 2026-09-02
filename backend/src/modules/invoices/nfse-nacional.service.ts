@@ -46,6 +46,18 @@ export interface NfseResult {
 
 const SEFIN_URL = 'https://sefin.nfse.gov.br/SefinNacional';
 
+/**
+ * Deriva um cTribNac (6 digitos: item(2) + subitem(2) + desdobro nacional(2))
+ * a partir do codigoServico legado (LC116, ex: "12.08"), quando a empresa
+ * ainda nao configurou o cTribNac exato em Configurações Fiscais. Usa
+ * sempre os 4 primeiros digitos (item+subitem) + "00" de desdobro - nunca
+ * mais que 6 digitos no total, conforme TSCodTribNac.
+ */
+function buildCTribNacFallback(codigoServico: string): string {
+  const digits = codigoServico.replace(/\D/g, '').padEnd(4, '0').slice(0, 4);
+  return `${digits}00`;
+}
+
 export class NfseNacionalService {
   private ambiente: string;
   private companyId?: string;
@@ -72,7 +84,7 @@ export class NfseNacionalService {
    * (InvoiceAttempt.requestXml), analogo ao antigo generateRpsXml.
    */
   buildDps(data: NfseData): { xml: string; idDps: string; dpsData: DpsData } {
-    const cTribNac = this.cTribNac || `${data.codigoServico.replace(/\D/g, '')}00`;
+    const cTribNac = this.cTribNac || buildCTribNacFallback(data.codigoServico);
     const dpsData: DpsData = {
       cLocEmi: data.codigoMunicipio,
       cnpjPrestador: data.cnpjPrestador,
