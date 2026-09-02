@@ -72,6 +72,7 @@ function mapRegimeTributario(regime: string | null): { opSimpNac: string; regApT
     case '2': // Simples Nacional - Excesso de sublimite (ISS apurado fora do SN)
       return { opSimpNac: '3', regApTribSN: '2', regEspTrib: '0' };
     case '3': // Regime Normal
+    case '4': // Isento/Imune (associação/entidade sem fins lucrativos - não é optante do SN)
     default:
       return { opSimpNac: '1', regEspTrib: '0' };
   }
@@ -98,6 +99,10 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
   const idDps = buildIdDps(data.cLocEmi, data.cnpjPrestador, data.serieDps, data.numeroDps);
   const regTrib = mapRegimeTributario(data.regimeTributario);
   const prestadorDigits = data.cnpjPrestador.replace(/\D/g, '');
+  // Imunidade de ISS (CF88 Art 150, VI, c - instituições de educação/assistência
+  // social sem fins lucrativos) exige reconhecimento formal junto ao município;
+  // regimeTributario '4' só deve ser usado quando esse reconhecimento já existe.
+  const isIssImune = data.regimeTributario === '4';
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
@@ -139,7 +144,9 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
       </vServPrest>
       <trib>
         <tribMun>
-          <tribISSQN>1</tribISSQN>
+          ${isIssImune
+            ? '<tribISSQN>2</tribISSQN>\n          <tpImunidade>3</tpImunidade>'
+            : '<tribISSQN>1</tribISSQN>'}
           <tpRetISSQN>1</tpRetISSQN>
         </tribMun>
         <totTrib>

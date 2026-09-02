@@ -240,12 +240,12 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
   }
 
   const codigoServico = order.event?.codigoServico || company.codigoServico;
-  const aliquotaIss = order.event?.aliquotaIss || company.aliquotaIss;
+  const aliquotaIss = order.event?.aliquotaIss ?? company.aliquotaIss;
   const descricaoServico = order.event?.descricaoServico ||
     fiscalSettings?.descricaoPadrao ||
     `Serviço de evento - ${order.event?.name || 'Ingresso'}`;
 
-  if (!codigoServico || !aliquotaIss) {
+  if (!codigoServico || aliquotaIss === null || aliquotaIss === undefined) {
     throw new Error('Código de serviço e alíquota ISS devem estar configurados');
   }
 

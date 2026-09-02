@@ -168,6 +168,7 @@ export default function CompanyPage() {
                 <option value="1">Simples Nacional</option>
                 <option value="2">Simples Nacional - Excesso</option>
                 <option value="3">Regime Normal</option>
+                <option value="4">Isento / Imune (associação, entidade sem fins lucrativos)</option>
               </select>
             </div>
             <div>
