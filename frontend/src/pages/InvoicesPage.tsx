@@ -192,6 +192,11 @@ export default function InvoicesPage() {
               Limpar filtro
             </button>
           )}
+          {!isLoading && cancellableIds.length === 0 && (
+            <p className="text-xs text-gray-400 ml-auto">
+              Só notas com status "Emitida" podem ser selecionadas para cancelamento em lote
+            </p>
+          )}
         </div>
 
         {isLoading ? (
@@ -210,6 +215,7 @@ export default function InvoicesPage() {
                         disabled={cancellableIds.length === 0}
                         className="rounded"
                         aria-label="Selecionar todas as notas emitidas"
+                        title={cancellableIds.length === 0 ? 'Nenhuma nota emitida nesta página - apenas notas com status "Emitida" podem ser canceladas' : 'Selecionar todas as notas emitidas desta página'}
                       />
                     </th>
                     <th className="table-th">Número</th>
