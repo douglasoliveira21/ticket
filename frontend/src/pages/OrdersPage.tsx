@@ -57,6 +57,9 @@ export default function OrdersPage() {
   const orders = data?.data || [];
   const pagination = data?.pagination;
   const hasFilters = !!search || !!statusFilter;
+  const pendingIds = orders
+    .filter((o: any) => (!o.invoices?.length || o.invoices[0].status === 'CANCELLED') && o.orderStatus === 'approved' && !o.ignored)
+    .map((o: any) => o.id);
 
   function toggleSelectOrder(id: string) {
     setSelectedOrders(prev =>
@@ -65,8 +68,7 @@ export default function OrdersPage() {
   }
 
   function selectAllPending() {
-    const pending = orders.filter((o: any) => (!o.invoices?.length || o.invoices[0].status === 'CANCELLED') && o.orderStatus === 'approved' && !o.ignored);
-    setSelectedOrders(pending.map((o: any) => o.id));
+    setSelectedOrders(pendingIds);
   }
 
   function clearFilters() {
@@ -128,10 +130,15 @@ export default function OrdersPage() {
               Limpar filtros
             </button>
           )}
-          <button onClick={selectAllPending} className="btn-secondary text-sm ml-auto">
+          <button onClick={selectAllPending} disabled={pendingIds.length === 0} className="btn-secondary text-sm ml-auto">
             Selecionar pendentes
           </button>
         </div>
+        {!isLoading && pendingIds.length === 0 && (
+          <p className="text-xs text-gray-400 mt-2">
+            Nenhuma venda pendente de emissão nesta página
+          </p>
+        )}
       </div>
 
       {/* Table */}
@@ -147,9 +154,11 @@ export default function OrdersPage() {
                     <input
                       type="checkbox"
                       onChange={e => e.target.checked ? selectAllPending() : setSelectedOrders([])}
-                      checked={selectedOrders.length > 0}
+                      checked={selectedOrders.length > 0 && pendingIds.every((id: string) => selectedOrders.includes(id))}
+                      disabled={pendingIds.length === 0}
                       className="rounded"
                       aria-label="Selecionar todas as vendas pendentes"
+                      title={pendingIds.length === 0 ? 'Nenhuma venda pendente de emissão nesta página' : 'Selecionar todas as vendas pendentes desta página'}
                     />
                   </th>
                   <th className="table-th">Cliente</th>
