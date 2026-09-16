@@ -14,6 +14,7 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [emailModal, setEmailModal] = useState<{ invoiceId: string; buyerName: string; buyerEmail: string } | null>(null);
   const [emailMessage, setEmailMessage] = useState('');
+  const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, statusFilter],
@@ -47,16 +48,52 @@ export default function InvoicesPage() {
     { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoices'] }) }
   );
 
+  const cancelBatchMutation = useFeedbackMutation(
+    ({ invoiceIds, codigoCancelamento }: { invoiceIds: string[]; codigoCancelamento: string }) =>
+      api.post('/invoices/cancel-batch', { invoiceIds, codigoCancelamento }),
+    {
+      loading: `Cancelando ${selectedInvoices.length} nota(s)...`,
+      success: (response) => {
+        const { success, errors } = response.data.data;
+        return `${success} nota(s) cancelada(s), ${errors} erro(s)`;
+      },
+      error: 'Erro ao processar cancelamento em lote',
+    },
+    {
+      onSuccess: () => {
+        setSelectedInvoices([]);
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      },
+    }
+  );
+
   const invoices = data?.data || [];
   const pagination = data?.pagination;
+  const cancellableIds = invoices.filter((i: any) => i.status === 'ISSUED').map((i: any) => i.id);
 
-  function handleCancelInvoice(invoiceId: string, numeroNota: string | null) {
+  function askCancelReason(label: string): string | null {
     const motivo = window.prompt(
-      `Cancelar nota ${numeroNota || ''}?\n\nInforme o motivo:\n1 - Erro na emissão\n2 - Serviço não prestado\n3 - Duplicidade\n\nDigite 1, 2 ou 3:`,
+      `Cancelar ${label}?\n\nInforme o motivo:\n1 - Erro na emissão\n2 - Serviço não prestado\n3 - Duplicidade\n\nDigite 1, 2 ou 3:`,
       '2'
     );
-    if (!motivo || !['1', '2', '3'].includes(motivo)) return;
+    if (!motivo || !['1', '2', '3'].includes(motivo)) return null;
+    return motivo;
+  }
+
+  function handleCancelInvoice(invoiceId: string, numeroNota: string | null) {
+    const motivo = askCancelReason(`a nota ${numeroNota || ''}`);
+    if (!motivo) return;
     cancelMutation.mutate({ id: invoiceId, codigoCancelamento: motivo });
+  }
+
+  function handleCancelBatch() {
+    const motivo = askCancelReason(`${selectedInvoices.length} nota(s)`);
+    if (!motivo) return;
+    cancelBatchMutation.mutate({ invoiceIds: selectedInvoices, codigoCancelamento: motivo });
+  }
+
+  function toggleSelectInvoice(id: string) {
+    setSelectedInvoices(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   }
 
   async function handleDownloadXml(invoiceId: string, numeroNota: string | null) {
@@ -119,6 +156,23 @@ export default function InvoicesPage() {
         <p>Acompanhe as NFS-e emitidas, pendentes e com erro.</p>
       </div>
 
+      {/* Barra de ação em lote */}
+      {selectedInvoices.length > 0 && (
+        <div className="card bg-primary-50 border-primary-200 flex items-center justify-between flex-wrap gap-4">
+          <p className="text-sm font-medium text-primary-800">
+            {selectedInvoices.length} nota(s) selecionada(s)
+          </p>
+          <button
+            onClick={handleCancelBatch}
+            disabled={cancelBatchMutation.isPending}
+            className="btn-danger flex items-center gap-2"
+          >
+            <XCircle className="w-4 h-4" />
+            Cancelar {selectedInvoices.length} nota(s)
+          </button>
+        </div>
+      )}
+
       <div className="card">
         <div className="flex items-center gap-4 mb-4">
           <select
@@ -148,6 +202,16 @@ export default function InvoicesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 sticky top-0 bg-white">
+                    <th className="table-th">
+                      <input
+                        type="checkbox"
+                        checked={selectedInvoices.length > 0 && cancellableIds.every((id: string) => selectedInvoices.includes(id))}
+                        onChange={e => setSelectedInvoices(e.target.checked ? cancellableIds : [])}
+                        disabled={cancellableIds.length === 0}
+                        className="rounded"
+                        aria-label="Selecionar todas as notas emitidas"
+                      />
+                    </th>
                     <th className="table-th">Número</th>
                     <th className="table-th">Cliente</th>
                     <th className="table-th">Evento</th>
@@ -161,6 +225,17 @@ export default function InvoicesPage() {
                 <tbody>
                   {invoices.map((invoice: any) => (
                     <tr key={invoice.id} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="table-td">
+                        {invoice.status === 'ISSUED' && (
+                          <input
+                            type="checkbox"
+                            checked={selectedInvoices.includes(invoice.id)}
+                            onChange={() => toggleSelectInvoice(invoice.id)}
+                            className="rounded"
+                            aria-label={`Selecionar nota ${invoice.numeroNota || ''}`}
+                          />
+                        )}
+                      </td>
                       <td className="table-td font-medium">{invoice.numeroNota || '-'}</td>
                       <td className="table-td">
                         <p>{invoice.order?.buyerName}</p>

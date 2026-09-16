@@ -6,6 +6,7 @@ import {
   issueBatch,
   retryInvoice,
   cancelInvoice,
+  cancelBatch,
   downloadInvoiceXml,
   downloadInvoicePdf,
   consultarParametroMunicipal,
@@ -22,5 +23,6 @@ invoicesRouter.get('/:id/download-xml', downloadInvoiceXml);
 invoicesRouter.get('/:id/download-pdf', downloadInvoicePdf);
 invoicesRouter.post('/issue/:orderId', issueInvoice);
 invoicesRouter.post('/issue-batch', issueBatch);
+invoicesRouter.post('/cancel-batch', cancelBatch);
 invoicesRouter.post('/:id/retry', retryInvoice);
 invoicesRouter.post('/:id/cancel', cancelInvoice);
