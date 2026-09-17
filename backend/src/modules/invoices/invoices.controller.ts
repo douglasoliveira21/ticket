@@ -331,7 +331,10 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
   });
 
   if (result.success) {
-    // Update invoice with success data
+    // Update invoice with success data. Quando o SEFIN Nacional retorna a
+    // alíquota/ISS realmente aplicados (parametrizados pelo município), eles
+    // substituem a estimativa configurada em Empresa/Evento - o que fica
+    // gravado passa a ser o valor real da nota, não a estimativa prévia.
     await prisma.invoice.update({
       where: { id: invoice.id },
       data: {
@@ -346,6 +349,8 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
         dataEmissao: new Date(),
         attempts: { increment: 1 },
         lastAttempt: new Date(),
+        ...(result.aliquotaAplicada !== undefined ? { aliquotaIss: result.aliquotaAplicada } : {}),
+        ...(result.valorIssReal !== undefined ? { valorIss: result.valorIssReal } : {}),
       },
     });
 

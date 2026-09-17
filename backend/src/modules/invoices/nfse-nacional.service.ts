@@ -55,6 +55,12 @@ export interface NfseResult {
   xmlRetorno?: string;
   pdfUrl?: string;
   errorMessage?: string;
+  // Valores REAIS aplicados pela Receita/SEFIN Nacional na NFS-e (não são os
+  // que a gente envia - a alíquota é parametrizada pelo município e calculada
+  // pelo governo; extraídos de volta do XML de retorno para refletir o valor
+  // oficial, não apenas a estimativa configurada em Empresa/Evento).
+  aliquotaAplicada?: number;
+  valorIssReal?: number;
 }
 
 const SEFIN_URL = 'https://sefin.nfse.gov.br/SefinNacional';
@@ -319,6 +325,10 @@ export class NfseNacionalService {
     }
 
     const numeroMatch = nfseXml.match(/<nNFSe>(.*?)<\/nNFSe>/);
+    // Valores reais calculados pela Receita/SEFIN Nacional (parametrizados
+    // pelo município, não pelo que configuramos em Empresa/Evento).
+    const pAliqMatch = nfseXml.match(/<pAliqAplic>(.*?)<\/pAliqAplic>/);
+    const vIssMatch = nfseXml.match(/<vISSQN>(.*?)<\/vISSQN>/);
 
     return {
       success: true,
@@ -326,6 +336,8 @@ export class NfseNacionalService {
       numeroNota: numeroMatch?.[1] || parsed.chaveAcesso,
       idDps,
       xmlRetorno: nfseXml || rawResponse,
+      aliquotaAplicada: pAliqMatch ? parseFloat(pAliqMatch[1]) : undefined,
+      valorIssReal: vIssMatch ? parseFloat(vIssMatch[1]) : undefined,
     };
   }
 }
