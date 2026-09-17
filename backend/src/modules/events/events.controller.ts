@@ -80,7 +80,7 @@ export async function updateEventSettings(req: AuthRequest, res: Response) {
     const schema = z.object({
       autoEmitNfse: z.boolean().optional(),
       codigoServico: z.string().optional(),
-      aliquotaIss: z.number().optional(),
+      aliquotaIss: z.number().nullable().optional(),
       descricaoServico: z.string().optional(),
     });
 

@@ -29,10 +29,15 @@ export default function EventDetailPage() {
     },
   });
 
+  const { data: company } = useQuery({
+    queryKey: ['company'],
+    queryFn: () => api.get('/companies/me').then(r => r.data.data),
+  });
+
   const settingsMutation = useFeedbackMutation(
     (data: any) => api.put(`/events/${id}/settings`, {
       ...data,
-      aliquotaIss: data.aliquotaIss ? parseFloat(data.aliquotaIss) : undefined,
+      aliquotaIss: data.aliquotaIss !== '' ? parseFloat(data.aliquotaIss) : null,
     }),
     { loading: 'Salvando configurações...', success: 'Configurações salvas', error: 'Erro ao salvar configurações' }
   );
@@ -92,8 +97,11 @@ export default function EventDetailPage() {
                 value={settings.codigoServico}
                 onChange={e => setSettings({ ...settings, codigoServico: e.target.value })}
                 className="input-field"
-                placeholder="Ex: 12.07"
+                placeholder={company?.codigoServico || 'Ex: 12.07'}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Deixe em branco para usar o da empresa{company?.codigoServico ? ` (${company.codigoServico})` : ''}.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Alíquota ISS (%)</label>
@@ -103,8 +111,18 @@ export default function EventDetailPage() {
                 value={settings.aliquotaIss}
                 onChange={e => setSettings({ ...settings, aliquotaIss: e.target.value })}
                 className="input-field"
-                placeholder="5.00"
+                placeholder={company?.aliquotaIss != null ? company.aliquotaIss.toString() : '5.00'}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                {settings.aliquotaIss !== '' ? (
+                  <span className="text-yellow-600 font-medium">
+                    ⚠ Este evento tem alíquota própria e ignora a da empresa
+                    {company?.aliquotaIss != null ? ` (${company.aliquotaIss}%)` : ''}.
+                  </span>
+                ) : (
+                  <>Em branco, usa a alíquota da empresa{company?.aliquotaIss != null ? ` (${company.aliquotaIss}%)` : ' (não configurada)'}.</>
+                )}
+              </p>
             </div>
             <div className="md:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">Descrição do Serviço</label>

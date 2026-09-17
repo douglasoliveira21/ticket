@@ -22,7 +22,7 @@ const companyUpdateSchema = z.object({
   regimeTributario: z.string().optional(),
   codigoServico: z.string().optional(),
   cTribNac: z.string().optional(),
-  aliquotaIss: z.number().optional(),
+  aliquotaIss: z.number().nullable().optional(),
   cnae: z.string().optional(),
 });
 

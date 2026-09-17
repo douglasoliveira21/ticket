@@ -63,7 +63,7 @@ export default function CompanyPage() {
   const mutation = useFeedbackMutation(
     (data: any) => api.put('/companies/me', {
       ...data,
-      aliquotaIss: data.aliquotaIss ? parseFloat(data.aliquotaIss) : undefined,
+      aliquotaIss: data.aliquotaIss !== '' ? parseFloat(data.aliquotaIss) : null,
     }),
     { loading: 'Salvando dados da empresa...', success: 'Empresa atualizada com sucesso', error: 'Erro ao atualizar empresa' },
     { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['company'] }) }
