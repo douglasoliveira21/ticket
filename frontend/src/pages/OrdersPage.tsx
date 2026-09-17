@@ -22,7 +22,7 @@ export default function OrdersPage() {
     queryFn: () => api.get('/orders', {
       params: {
         page,
-        limit: 20,
+        limit: 50,
         search: search || undefined,
         invoiceStatus: statusFilter || undefined,
         eventId: eventIdFilter || undefined,
