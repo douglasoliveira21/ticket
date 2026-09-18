@@ -44,7 +44,7 @@ export default function OrderDetailPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Detalhe da Venda</h1>
         <div className="flex gap-2">
-          {(!latestInvoice || latestInvoice.status === 'CANCELLED') && order.orderStatus === 'approved' && !order.ignored && (
+          {(!latestInvoice || latestInvoice.status === 'CANCELLED' || latestInvoice.status === 'ERROR') && order.orderStatus === 'approved' && !order.ignored && (
             <button onClick={() => issueMutation.mutate()} disabled={issueMutation.isPending} className="btn-primary flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Emitir NFS-e

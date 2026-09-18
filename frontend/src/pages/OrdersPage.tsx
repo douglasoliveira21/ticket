@@ -7,6 +7,10 @@ import { useFeedbackMutation } from '../lib/feedback';
 import Spinner from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
 
+// Status de nota que não impedem uma nova emissão para a mesma venda:
+// canceladas e com erro podem ser reemitidas (o backend também permite).
+const REEMISSIVEL = ['CANCELLED', 'ERROR'];
+
 export default function OrdersPage() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -58,7 +62,7 @@ export default function OrdersPage() {
   const pagination = data?.pagination;
   const hasFilters = !!search || !!statusFilter;
   const pendingIds = orders
-    .filter((o: any) => (!o.invoices?.length || o.invoices[0].status === 'CANCELLED') && o.orderStatus === 'approved' && !o.ignored)
+    .filter((o: any) => (!o.invoices?.length || REEMISSIVEL.includes(o.invoices[0].status)) && o.orderStatus === 'approved' && !o.ignored)
     .map((o: any) => o.id);
 
   function toggleSelectOrder(id: string) {
@@ -173,7 +177,7 @@ export default function OrdersPage() {
               <tbody>
                 {orders.map((order: any) => {
                   const invoice = order.invoices?.[0];
-                  const canIssue = (!invoice || invoice.status === 'CANCELLED') && order.orderStatus === 'approved' && !order.ignored;
+                  const canIssue = (!invoice || REEMISSIVEL.includes(invoice.status)) && order.orderStatus === 'approved' && !order.ignored;
 
                   return (
                     <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50">

@@ -226,12 +226,43 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
 
   if (!order) throw new Error('Venda não encontrada');
 
-  // Check if invoice already exists
-  const existingInvoice = await prisma.invoice.findFirst({
-    where: { orderId: order.id, status: { in: ['ISSUED', 'PROCESSING'] } },
+  // Nota já emitida bloqueia nova emissão. "Processando" também bloqueia,
+  // mas só enquanto for recente: a emissão é síncrona, então uma nota presa
+  // nesse status há mais de 10 minutos é resquício de um processo
+  // interrompido - sem isso ela travaria a venda para sempre, já que não há
+  // ação na tela para notas em processamento.
+  const PROCESSING_STALE_MS = 10 * 60 * 1000;
+  const blockingInvoice = await prisma.invoice.findFirst({
+    where: {
+      orderId: order.id,
+      OR: [
+        { status: 'ISSUED' },
+        { status: 'PROCESSING', createdAt: { gt: new Date(Date.now() - PROCESSING_STALE_MS) } },
+      ],
+    },
   });
 
-  if (existingInvoice) throw new Error('Nota já emitida ou em processamento para esta venda');
+  if (blockingInvoice) throw new Error('Nota já emitida ou em processamento para esta venda');
+
+  // Tentativas anteriores que falharam (ou ficaram presas em processamento)
+  // são substituídas, não acumuladas - mesma lógica do "tentar novamente" da
+  // tela de Notas Fiscais, para que reemitir pela tela de Vendas não deixe
+  // notas duplicadas na lista.
+  const staleInvoices = await prisma.invoice.findMany({
+    where: {
+      orderId: order.id,
+      OR: [
+        { status: 'ERROR' },
+        { status: 'PROCESSING', createdAt: { lte: new Date(Date.now() - PROCESSING_STALE_MS) } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (staleInvoices.length > 0) {
+    const staleIds = staleInvoices.map(i => i.id);
+    await prisma.invoiceAttempt.deleteMany({ where: { invoiceId: { in: staleIds } } });
+    await prisma.invoice.deleteMany({ where: { id: { in: staleIds } } });
+  }
 
   // Get company and fiscal settings
   const company = await prisma.company.findUnique({ where: { id: companyId } });
