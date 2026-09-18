@@ -43,7 +43,7 @@ export async function listOrders(req: AuthRequest, res: Response) {
           invoices: {
             take: 1,
             orderBy: { createdAt: 'desc' },
-            select: { id: true, status: true, numeroNota: true },
+            select: { id: true, status: true, numeroNota: true, dataEmissao: true },
           },
         },
         orderBy: { purchaseDate: 'desc' },

@@ -204,9 +204,16 @@ export default function OrdersPage() {
                       </td>
                       <td className="table-td">
                         {invoice ? (
-                          <span className={`badge-${invoice.status === 'ISSUED' ? 'success' : invoice.status === 'ERROR' ? 'error' : invoice.status === 'CANCELLED' ? 'info' : 'warning'}`}>
-                            {invoice.status === 'ISSUED' ? `Emitida #${invoice.numeroNota}` : invoice.status === 'ERROR' ? 'Erro' : invoice.status === 'CANCELLED' ? 'Cancelada' : 'Processando'}
-                          </span>
+                          <>
+                            <span className={`badge-${invoice.status === 'ISSUED' ? 'success' : invoice.status === 'ERROR' ? 'error' : invoice.status === 'CANCELLED' ? 'info' : 'warning'}`}>
+                              {invoice.status === 'ISSUED' ? `Emitida #${invoice.numeroNota}` : invoice.status === 'ERROR' ? 'Erro' : invoice.status === 'CANCELLED' ? 'Cancelada' : 'Processando'}
+                            </span>
+                            {invoice.status === 'ISSUED' && invoice.dataEmissao && (
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {new Date(invoice.dataEmissao).toLocaleDateString('pt-BR')}
+                              </p>
+                            )}
+                          </>
                         ) : order.ignored ? (
                           <span className="badge-info">Ignorada</span>
                         ) : (
