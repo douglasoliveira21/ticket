@@ -249,8 +249,19 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
     throw new Error('Código de serviço e alíquota ISS devem estar configurados');
   }
 
-  // Get next RPS number
+  // Get next RPS number. Avança sempre, mesmo se a emissão falhar - o
+  // idDps da DPS é formado a partir desse número, e o SEFIN Nacional trata
+  // a DPS como idempotente por Id: reenviar o mesmo número gera o mesmo
+  // idDps, e uma tentativa anterior (com dados diferentes) pode fazer o
+  // SEFIN devolver o erro já registrado daquela vez, sem reprocessar os
+  // dados novos da tentativa atual.
   const currentRps = fiscalSettings?.proximoNumeroRps || 1;
+  if (fiscalSettings) {
+    await prisma.fiscalSettings.update({
+      where: { id: fiscalSettings.id },
+      data: { proximoNumeroRps: currentRps + 1 },
+    });
+  }
 
   // Create invoice record
   const invoice = await prisma.invoice.create({
@@ -353,14 +364,6 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
         ...(result.valorIssReal !== undefined ? { valorIss: result.valorIssReal } : {}),
       },
     });
-
-    // Increment RPS number
-    if (fiscalSettings) {
-      await prisma.fiscalSettings.update({
-        where: { id: fiscalSettings.id },
-        data: { proximoNumeroRps: currentRps + 1 },
-      });
-    }
 
     // Send email
     try {
