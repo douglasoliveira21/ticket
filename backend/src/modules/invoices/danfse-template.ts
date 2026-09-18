@@ -85,13 +85,21 @@ export interface DanfseData {
 }
 
 export async function generateDanfseHtml(data: DanfseData): Promise<string> {
-  // Gerar QR Code como base64
-  const qrCodeUrl = `https://www.nfse.gov.br/ConsultaPublica?chave=${data.chaveAcesso}`;
+  // QR Code apontando para a consulta pública oficial da NFS-e Nacional.
+  // O parâmetro é "ChaveAcesso" (nome do campo no formulário oficial) e só
+  // faz sentido com a chave real de 50 dígitos - sem ela o QR levaria a uma
+  // consulta inválida, então nesse caso não geramos o código.
+  const chaveDigits = (data.chaveAcesso || '').replace(/\D/g, '');
   let qrCodeBase64 = '';
-  try {
-    qrCodeBase64 = await QRCode.toDataURL(qrCodeUrl, { width: 120, margin: 1 });
-  } catch {
-    qrCodeBase64 = '';
+  if (chaveDigits.length === 50) {
+    try {
+      qrCodeBase64 = await QRCode.toDataURL(
+        `https://www.nfse.gov.br/consultapublica?ChaveAcesso=${chaveDigits}`,
+        { width: 120, margin: 1 }
+      );
+    } catch {
+      qrCodeBase64 = '';
+    }
   }
 
   return `<!DOCTYPE html>

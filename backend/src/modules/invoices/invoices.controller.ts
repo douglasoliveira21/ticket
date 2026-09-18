@@ -94,7 +94,7 @@ export async function downloadInvoicePdf(req: AuthRequest, res: Response) {
       where: { id: req.params.id, companyId: req.companyId },
       include: {
         order: { select: { buyerName: true, buyerEmail: true, buyerDocument: true, buyerPhone: true, event: { select: { name: true } } } },
-        company: { select: { razaoSocial: true, cnpj: true, inscricaoMunicipal: true, emailFiscal: true, telefone: true, logradouro: true, numero: true, complemento: true, bairro: true, cidade: true, uf: true, cep: true, codigoServico: true, regimeTributario: true } },
+        company: { select: { razaoSocial: true, cnpj: true, inscricaoMunicipal: true, emailFiscal: true, telefone: true, logradouro: true, numero: true, complemento: true, bairro: true, cidade: true, uf: true, cep: true, codigoServico: true, cTribNac: true, cTribMun: true, regimeTributario: true } },
       },
     });
 
@@ -110,7 +110,10 @@ export async function downloadInvoicePdf(req: AuthRequest, res: Response) {
     const dataHoraFormatada = `${dataFormatada} ${dataEmissao.toLocaleTimeString('pt-BR')}`;
     const enderecoCompleto = [company?.logradouro, company?.numero, company?.complemento, company?.bairro].filter(Boolean).join(', ');
 
-    const chaveAcesso = invoice.codigoVerificacao || `${company?.cnpj?.replace(/\D/g, '')}${invoice.numeroNota || ''}`;
+    // Chave de acesso real da NFS-e Nacional (50 dígitos), devolvida pelo
+    // SEFIN na emissão. Os fallbacks só existem para notas antigas emitidas
+    // pelo sistema municipal anterior, que não tinham chave nacional.
+    const chaveAcesso = invoice.chaveAcesso || invoice.codigoVerificacao || `${company?.cnpj?.replace(/\D/g, '')}${invoice.numeroNota || ''}`;
 
     const danfseData = {
       chaveAcesso,
@@ -141,8 +144,8 @@ export async function downloadInvoicePdf(req: AuthRequest, res: Response) {
       tomadorMunicipio: 'Belo Horizonte - MG',
       tomadorCep: '-',
 
-      codigoTribNacional: invoice.codigoServico || '-',
-      codigoTribMunicipal: invoice.codigoServico || '-',
+      codigoTribNacional: company?.cTribNac || invoice.codigoServico || '-',
+      codigoTribMunicipal: company?.cTribMun || '-',
       localPrestacao: `${company?.cidade || 'BELO HORIZONTE'} - ${company?.uf || 'MG'}`,
       paisPrestacao: '-',
       descricaoServico: invoice.descricaoServico || '-',
@@ -241,9 +244,12 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
 
   const codigoServico = order.event?.codigoServico || company.codigoServico;
   const aliquotaIss = order.event?.aliquotaIss ?? company.aliquotaIss;
-  const descricaoServico = order.event?.descricaoServico ||
+  // A descrição do serviço na nota é sempre o título do evento emitido.
+  // Os fallbacks só entram quando a venda não está vinculada a um evento.
+  const descricaoServico = order.event?.name ||
+    order.event?.descricaoServico ||
     fiscalSettings?.descricaoPadrao ||
-    `Serviço de evento - ${order.event?.name || 'Ingresso'}`;
+    'Ingresso para evento';
 
   if (!codigoServico || aliquotaIss === null || aliquotaIss === undefined) {
     throw new Error('Código de serviço e alíquota ISS devem estar configurados');

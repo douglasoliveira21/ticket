@@ -227,7 +227,9 @@ export async function sendInvoiceEmail(companyId: string, order: any, invoice: a
     const dataEmissao = invoice.dataEmissao ? new Date(invoice.dataEmissao) : new Date();
     const dataFormatada = dataEmissao.toLocaleDateString('pt-BR');
     const dataHoraFormatada = `${dataFormatada} ${dataEmissao.toLocaleTimeString('pt-BR')}`;
-    const chaveAcesso = invoice.codigoVerificacao || invoice.numeroNota || '';
+    // Chave de acesso real da NFS-e Nacional (50 dígitos); os fallbacks só
+    // valem para notas antigas do sistema municipal anterior.
+    const chaveAcesso = invoice.chaveAcesso || invoice.codigoVerificacao || invoice.numeroNota || '';
 
     const danfseData = {
       chaveAcesso,
