@@ -318,6 +318,7 @@ async function processInvoiceEmission(orderId: string, companyId: string, userId
     razaoSocialPrestador: company.razaoSocial,
     regimeTributario: company.regimeTributario,
     cTribNac: company.cTribNac,
+    cTribMun: company.cTribMun,
   });
 
   const result = await nfseService.emitirNfse(nfseData);
@@ -417,6 +418,7 @@ export async function consultarParametroMunicipal(req: AuthRequest, res: Respons
       razaoSocialPrestador: company.razaoSocial,
       regimeTributario: company.regimeTributario,
       cTribNac: company.cTribNac,
+      cTribMun: company.cTribMun,
     });
 
     const result = await nfseService.consultarParametroMunicipal(company.codigoMunicipio, cTribNac);
@@ -522,6 +524,7 @@ async function processInvoiceCancellation(invoiceId: string, companyId: string, 
     razaoSocialPrestador: company.razaoSocial,
     regimeTributario: company.regimeTributario,
     cTribNac: company.cTribNac,
+    cTribMun: company.cTribMun,
   });
 
   const result = await nfseService.cancelarNfse(

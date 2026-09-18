@@ -25,6 +25,7 @@ export default function CompanyPage() {
     regimeTributario: '',
     codigoServico: '',
     cTribNac: '',
+    cTribMun: '',
     aliquotaIss: '',
     cnae: '',
   });
@@ -54,6 +55,7 @@ export default function CompanyPage() {
         regimeTributario: data.regimeTributario || '',
         codigoServico: data.codigoServico || '',
         cTribNac: data.cTribNac || '',
+        cTribMun: data.cTribMun || '',
         aliquotaIss: data.aliquotaIss?.toString() || '',
         cnae: data.cnae || '',
       });
@@ -190,6 +192,22 @@ export default function CompanyPage() {
               />
               <p className="text-xs text-gray-500 mt-1">
                 Exigido pela NFS-e Nacional. Se deixado em branco, o sistema usa o Código de Serviço + "01" como padrão (confira o desdobro exato no Anexo B da tabela nacional).
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Código de Tributação Municipal (cTribMun)
+              </label>
+              <input
+                name="cTribMun"
+                value={form.cTribMun}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="Ex: 122"
+                maxLength={3}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                3 dígitos, da lista de serviços da própria prefeitura. Prefeituras que administram o ISS pela lista municipal (como BH) rejeitam a nota sem ele (erro E0312). Consulte uma nota já emitida ou o contador.
               </p>
             </div>
             <div>

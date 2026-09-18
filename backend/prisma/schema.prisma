@@ -44,6 +44,7 @@ model Company {
   regimeTributario    String?
   codigoServico       String?
   cTribNac            String? // codigo de tributacao nacional (6 digitos) - NFS-e Nacional
+  cTribMun            String? // codigo de tributacao municipal (3 digitos) - exigido por municipios que administram o ISS pela lista propria
   aliquotaIss         Float?
   cnae                String?
   certificadoDigital  String?   // encrypted

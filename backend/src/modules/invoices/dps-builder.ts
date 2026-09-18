@@ -15,6 +15,7 @@ export interface DpsData {
   nomeTomador: string;
   emailTomador?: string;
   cTribNac: string; // codigo de tributacao nacional (6 digitos)
+  cTribMun?: string; // codigo de tributacao municipal (3 digitos) - exigido por municipios que administram o ISS pela lista propria
   descricaoServico: string;
   valorServico: number;
   serieDps: string; // ate 5 digitos
@@ -147,6 +148,7 @@ export function buildDpsXml(data: DpsData): { xml: string; idDps: string } {
       </locPrest>
       <cServ>
         <cTribNac>${data.cTribNac}</cTribNac>
+        ${data.cTribMun ? `<cTribMun>${data.cTribMun.replace(/\D/g, '').padStart(3, '0').slice(-3)}</cTribMun>` : ''}
         <xDescServ>${escapeXml(data.descricaoServico)}</xDescServ>
       </cServ>
       ${data.evento ? `<atvEvento>

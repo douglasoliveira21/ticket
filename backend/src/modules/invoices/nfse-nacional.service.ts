@@ -87,6 +87,7 @@ export class NfseNacionalService {
   private razaoSocialPrestador?: string;
   private regimeTributario?: string | null;
   private cTribNac?: string | null;
+  private cTribMun?: string | null;
 
   constructor(config: {
     ambiente: string;
@@ -94,12 +95,14 @@ export class NfseNacionalService {
     razaoSocialPrestador?: string;
     regimeTributario?: string | null;
     cTribNac?: string | null;
+    cTribMun?: string | null;
   }) {
     this.ambiente = config.ambiente;
     this.companyId = config.companyId;
     this.razaoSocialPrestador = config.razaoSocialPrestador;
     this.regimeTributario = config.regimeTributario;
     this.cTribNac = config.cTribNac;
+    this.cTribMun = config.cTribMun;
   }
 
   /**
@@ -121,6 +124,7 @@ export class NfseNacionalService {
       nomeTomador: data.nomeTomador,
       emailTomador: data.emailTomador,
       cTribNac,
+      cTribMun: this.cTribMun || undefined,
       descricaoServico: data.descricaoServico,
       valorServico: data.valorServico,
       serieDps: data.serieRps,
